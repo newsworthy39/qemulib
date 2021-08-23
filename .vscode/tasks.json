@@ -1,0 +1,57 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"type": "shell",
+			"label": "Build",
+			"command": "make",
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"args": [
+				"all"
+			],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "uses compiler: /usr/bin/gcc",
+		},
+		{
+			"type": "shell",
+			"label": "Clean",
+			"command": "make",
+			"args": [
+				"clean"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			},
+			"detail": "uses rm",
+		},
+		{
+			"type": "shell",
+			"label": "Run",
+			"command": "./qemu-main",
+			"args": [
+				
+			],
+			"options": {
+				"cwd": "${workspaceFolder}"
+			},
+			"group": {
+				"kind": "test",
+				"isDefault": true
+			},
+			"detail": "uses: qemu-main",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"Build"
+			]
+		}
+	]
+}
