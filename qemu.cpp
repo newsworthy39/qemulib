@@ -7,8 +7,7 @@ std::map<std::string, std::tuple<int, int>> instancemodels = {
     {"small", {1024, 1}},
     {"medium", {2048, 2}},
     {"large", {4096, 4}},
-    {"xlarge", {8196, 8}}
-};
+    {"xlarge", {8196, 8}}};
 
 /**
  * Helper functions 
@@ -45,7 +44,6 @@ std::string getMacSys(std::string tapname)
 
 int getTapIndex(std::string tapname)
 {
-
     int tapIndex = 0;
     auto tapfile = string_format("/sys/class/net/%s/ifindex", tapname.c_str());
     std::ifstream myfile(tapfile.c_str());
@@ -127,13 +125,11 @@ void PushArguments(std::vector<std::string> &args, std::string key, std::string 
 /*
  * QEMU_init (int memory, int numcpus)
 */
-void QEMU_init(std::vector<std::string> &args, const std::string &instanceargument)
+void QEMU_machine(std::vector<std::string> &args, const std::string &instanceargument)
 {
     std::string guestname = generate_uuid_v4();
     int memory = 2048, cpu = 2;
 
-    PushSingleArgument(args, "/usr/bin/qemu-system-x86_64");
-    PushSingleArgument(args, "-enable-kvm");
     PushArguments(args, "-name", guestname);
     PushArguments(args, "-M", "ubuntu");              // machine-type
     PushArguments(args, "-device", "virtio-rng-pci"); // random
@@ -143,7 +139,8 @@ void QEMU_init(std::vector<std::string> &args, const std::string &instanceargume
     PushArguments(args, "-watchdog", "i6300esb");
     PushArguments(args, "-watchdog-action", "reset");
     PushArguments(args, "-k", QEMU_LANG);
-    PushArguments(args, "-smbios","type=11,value=cloud-init:ds=nocloud-net;s=http://10.0.92.1:8000/");
+    // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
+    PushArguments(args, "-smbios", "type=1,serial=ds=None");
 
     auto it = instancemodels.find(instanceargument);
     while (it != instancemodels.end())
@@ -161,7 +158,7 @@ void QEMU_init(std::vector<std::string> &args, const std::string &instanceargume
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
-void QEMU_drives(std::vector<std::string> &args, std::string drive)
+void QEMU_drive(std::vector<std::string> &args, std::string drive)
 {
     if (fileExists(drive))
     {
@@ -193,7 +190,6 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
 
 void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
 {
-
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
     auto tappath = string_format("/dev/tap%d", getTapIndex(tapname));
@@ -204,7 +200,7 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
         exit(-1);
     }
 
-    std::cout << "Using network-device: /dev/tap" << fd << std::endl;
+    std::cout << "Using network-device: " << tappath << std::endl;
     PushArguments(args, "-netdev", string_format("tap,fd=%d,id=guest0", fd));
     PushArguments(args, "-device", string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
     // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
@@ -215,14 +211,31 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
 
     // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
     std::vector<char *> left_argv;
+    left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_SYSTEM));
+    left_argv.push_back(const_cast<char *>("-enable-kvm"));
     for (int i = 0; i < args.size(); i++)
     {
         left_argv.push_back(const_cast<char *>(args[i].c_str()));
     }
     left_argv.push_back(NULL); // leave a null
 
-    const char *arg0 = args[0].c_str();
-    execvp(arg0, &left_argv[0]);
-    std::cerr << "Error on exec of " << arg0 << ": " << strerror(errno) << std::endl;
+    execvp(left_argv[0], &left_argv[0]);
+    std::cerr << "Error on exec of " << left_argv[0] << ": " << strerror(errno) << std::endl;
     _exit(errno == ENOENT ? 127 : 126);
+}
+
+void QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path)
+{
+    using std::filesystem::directory_iterator;
+    std::string reg = std::string(path) + std::string(filter);
+
+    for (const auto &file : directory_iterator(path))
+    {
+        std::string f = file.path();
+
+        if (f.find(reg) == 0)
+        {
+            std::cout << file.path() << std::endl;
+        }
+    }
 }
