@@ -19,8 +19,14 @@
 #include <fstream>
 #include <sstream>
 #include <random>
+#include <filesystem>
 
 #define QEMU_LANG "da"
+#define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
+#define QEMU_DEFAULT_GUEST_PATH "/mnt/faststorage/vms/"
+#define QEMU_DEFAULT_FILTER "guest-cloud"
+#define QEMU_DEFAULT_INSTANCE "medium"
+#define QEMU_DEFAULT_INTERFACE "macvtap0"
 
 enum QEMU_DISPLAY
 {
@@ -49,12 +55,12 @@ void PushArguments(std::vector<std::string> &args, std::string key, std::string 
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_init(std::vector<std::string> &args, const std::string &instanceargument);
+void QEMU_machine(std::vector<std::string> &args, const std::string &instanceargument);
 
 /*
- * QEMU_drives (std::vector<std::string>, int memory, int numcpus)
+ * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_drives(std::vector<std::string> &args, std::string drive);
+void QEMU_drive(std::vector<std::string> &args, std::string drive);
 
 /**
  * QEMU_launch
@@ -65,5 +71,10 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname);
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
  */
 void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display);
+
+/**
+ * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
+ */
+void QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
 
 #endif
