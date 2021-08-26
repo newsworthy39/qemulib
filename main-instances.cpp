@@ -37,7 +37,14 @@ int main(int argc, char *argv[])
         {
             std::cout << "Using " << path << ", " << filter << std::endl;
         }
-        QEMU_List_VMImages(filter, path);
+
+        std::vector<std::string> images = QEMU_List_VMImages(filter, path);
+        std::vector<std::string>::iterator image_iterator = images.begin();
+        while (image_iterator != images.end())
+        {
+            std::cout << *image_iterator << std::endl;
+            image_iterator++;
+        }
     }
     else
     {

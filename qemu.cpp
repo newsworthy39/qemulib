@@ -224,8 +224,9 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
     _exit(errno == ENOENT ? 127 : 126);
 }
 
-void QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path)
+std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path)
 {
+    std::vector<std::string> files;
     using std::filesystem::directory_iterator;
     std::string reg = std::string(path) + std::string(filter);
 
@@ -235,7 +236,9 @@ void QEMU_List_VMImages(const std::filesystem::path filter, const std::filesyste
 
         if (f.find(reg) == 0)
         {
-            std::cout << file.path() << std::endl;
+            files.push_back(f);
         }
     }
+
+    return files;
 }

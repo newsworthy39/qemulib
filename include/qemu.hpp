@@ -28,6 +28,9 @@
 #define QEMU_DEFAULT_INSTANCE "medium"
 #define QEMU_DEFAULT_INTERFACE "macvtap0"
 
+
+// https://github.com/moises-silva/libnetlink-examples/blob/master/addvlan.c
+
 enum QEMU_DISPLAY
 {
     GTK,
@@ -75,6 +78,6 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display);
 /**
  * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
  */
-void QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
+std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
 
 #endif
