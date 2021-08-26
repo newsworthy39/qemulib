@@ -42,19 +42,6 @@ std::string getMacSys(std::string tapname)
     return mac;
 }
 
-int getTapIndex(std::string tapname)
-{
-    int tapIndex = 0;
-    auto tapfile = string_format("/sys/class/net/%s/ifindex", tapname.c_str());
-    std::ifstream myfile(tapfile.c_str());
-    if (myfile.is_open())
-    {                       // always check whether the file is open
-        myfile >> tapIndex; // pipe file's content into stream
-    }
-
-    return tapIndex;
-}
-
 std::string generate_uuid_v4()
 {
     static std::random_device rd;
@@ -192,7 +179,7 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
 {
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
-    auto tappath = string_format("/dev/tap%d", getTapIndex(tapname));
+    auto tappath = string_format("/dev/tap%d", if_nametoindex(tapname.c_str()));
     int fd = open(tappath.c_str(), O_RDWR);
     if (fd == -1)
     {
