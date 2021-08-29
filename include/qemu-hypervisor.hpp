@@ -14,23 +14,20 @@
 #include <vector>
 #include <fcntl.h>
 #include <map>
-#include <tuple>
 #include <cstring>
-#include <fstream>
-#include <sstream>
 #include <random>
 #include <filesystem>
 #include <net/if.h>
+#include <fstream>
+#include <qemu-context.hpp>
+#include <qemu-drives.hpp>
 
 #define QEMU_LANG "da"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
-#define QEMU_DEFAULT_GUEST_PATH "/mnt/faststorage/vms/"
-#define QEMU_DEFAULT_FILTER "guest-cloud"
-#define QEMU_DEFAULT_INSTANCE "medium"
+#define QEMU_DEFAULT_INSTANCE "t1-medium"
+#define QEMU_DEFAULT_MACHINE  "ubuntu2004"
 #define QEMU_DEFAULT_INTERFACE "macvtap0"
-
-
-// https://github.com/moises-silva/libnetlink-examples/blob/master/addvlan.c
+#define QEMU_DEFAULT_IMAGEDB "./mydb.json"
 
 enum QEMU_DISPLAY
 {
@@ -39,48 +36,43 @@ enum QEMU_DISPLAY
     NONE
 };
 
-/**
- * Helper functions
- */
-// https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
-template <typename... Args>
-std::string string_format(const std::string &format, Args... args);
-std::string displayArgumentAsString(const QEMU_DISPLAY &display);
-std::string generate_uuid_v4();
+
 std::string getMacSys(std::string tapname);
-bool fileExists(const std::string &filename);
+std::string displayArgumentAsString(const QEMU_DISPLAY &display);
 int getNumberOfDrives(std::vector<std::string> &args);
 
 /** Stack functions */
-void PushSingleArgument(std::vector<std::string> &args, std::string value);
-void PushArguments(std::vector<std::string> &args, std::string key, std::string value);
+void PushSingleArgument(QemuContext &args, std::string value);
+void PushArguments(QemuContext &args, std::string key, std::string value);
 
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_machine(std::vector<std::string> &args, const std::string &instanceargument);
+void QEMU_instance(QemuContext &args, const std::string &instanceargument);
 
 /*
  * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_drive(std::vector<std::string> &args, std::string drive);
+void QEMU_drive(QemuContext &args, const std::string &drive);
+
+/*
+ * QEMU_machine (QemuContext &args, const std::string &model, const std::string &dabase)
+*/
+void QEMU_machine(QemuContext &args, const std::string &model, const std::string &database);
 
 /**
  * QEMU_launch
  */
-void QEMU_Launch(std::vector<std::string> &args, std::string tapname);
+void QEMU_Launch(QemuContext &args, std::string tapname);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
  */
-void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display);
+void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
 
 /**
  * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
  */
 std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
-
-
-
 
 #endif

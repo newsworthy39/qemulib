@@ -1,20 +1,12 @@
-#include "qemu.hpp"
+#include <qemu-hypervisor.hpp>
 
-/**
- * This defines our instances
- */
-std::map<std::string, std::tuple<int, int>> instancemodels = {
-    {"small", {1024, 1}},
-    {"medium", {2048, 2}},
-    {"large", {4096, 4}},
-    {"xlarge", {8196, 8}}};
 
 /**
  * Helper functions 
  */
 // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
 template <typename... Args>
-std::string string_format(const std::string &format, Args... args)
+std::string m2_string_format(const std::string &format, Args... args)
 {
     int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
     if (size_s <= 0)
@@ -27,22 +19,7 @@ std::string string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-std::string getMacSys(std::string tapname)
-{
-
-    std::string mac;
-    ;
-    auto tapfile = string_format("/sys/class/net/%s/address", tapname.c_str());
-    std::ifstream myfile(tapfile.c_str());
-    if (myfile.is_open())
-    {                  // always check whether the file is open
-        myfile >> mac; // pipe file's content into stream
-    }
-
-    return mac;
-}
-
-std::string generate_uuid_v4()
+std::string m2_generate_uuid_v4()
 {
     static std::random_device rd;
     static std::mt19937 gen(rd());
@@ -86,6 +63,29 @@ bool fileExists(const std::string &filename)
     return (stat(filename.c_str(), &buffer) == 0);
 }
 
+/**
+ * This defines our instances
+ */
+std::map<std::string, std::tuple<int, int>> instancemodels = {
+    {"t1-medium", {1024, 1}},
+    {"t1-medium", {2048, 2}},
+    {"t1-large", {4096, 4}},
+    {"t1-xlarge", {8196, 8}}};
+
+std::string getMacSys(std::string tapname)
+{
+    std::string mac;
+    ;
+    auto tapfile = m2_string_format("/sys/class/net/%s/address", tapname.c_str());
+    std::ifstream myfile(tapfile.c_str());
+    if (myfile.is_open())
+    {                  // always check whether the file is open
+        myfile >> mac; // pipe file's content into stream
+    }
+
+    return mac;
+}
+
 int getNumberOfDrives(std::vector<std::string> &args)
 {
     int driveCount = 0;
@@ -112,51 +112,81 @@ void PushArguments(std::vector<std::string> &args, std::string key, std::string 
 /*
  * QEMU_init (int memory, int numcpus)
 */
-void QEMU_machine(std::vector<std::string> &args, const std::string &instanceargument)
+void QEMU_instance(std::vector<std::string> &args, const std::string &instanceargument)
 {
-    std::string guestname = generate_uuid_v4();
+    std::string guestname = m2_generate_uuid_v4();
+
     int memory = 2048, cpu = 2;
 
     PushArguments(args, "-name", guestname);
-    PushArguments(args, "-M", "ubuntu");              // machine-type
     PushArguments(args, "-device", "virtio-rng-pci"); // random
-    PushArguments(args, "-monitor", string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
-    PushArguments(args, "-pidfile", string_format("/tmp/%s.pid", guestname.c_str()));
+    PushArguments(args, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
+    PushArguments(args, "-pidfile", m2_string_format("/tmp/%s.pid", guestname.c_str()));
     PushArguments(args, "-runas", "gandalf");
     PushArguments(args, "-watchdog", "i6300esb");
     PushArguments(args, "-watchdog-action", "reset");
     PushArguments(args, "-k", QEMU_LANG);
     // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
     PushArguments(args, "-smbios", "type=1,serial=ds=None");
+    PushArguments(args, "-boot", "cd"); // Boot with ISO if disk is missing.
+    PushSingleArgument(args, "-daemonize");
 
-    auto it = instancemodels.find(instanceargument);
-    while (it != instancemodels.end())
+    for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
-        std::tuple<int, int> value = it->second;
-        memory = std::get<0>(value);
-        cpu = std::get<1>(value);
-        it = instancemodels.end();
+        std::string first = it->first;
+        std::tuple<int, int> second = it->second;
+
+        if (first.starts_with(instanceargument))
+        {
+            memory = std::get<0>(second);
+            cpu = std::get<1>(second);
+            break;
+        }
     }
 
-    PushArguments(args, "-m", string_format("%d", memory));                                       // memory
-    PushArguments(args, "-smp", string_format("cpus=%d,cores=%d,maxcpus=%d", cpu, cpu, cpu * 2)); // cpu setup.
+    PushArguments(args, "-m", m2_string_format("%d", memory));                                       // memory
+    PushArguments(args, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d", cpu, cpu, cpu * 2)); // cpu setup.
     PushArguments(args, "-cpu", "host");
 
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
-void QEMU_drive(std::vector<std::string> &args, std::string drive)
+void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
-        PushArguments(args, "-drive", string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=off", drive.c_str(), getNumberOfDrives(args)));
-
+        PushArguments(args, "-drive", m2_string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=off,aio=native", drive.c_str(), getNumberOfDrives(args)));
         std::cout << "Using drive: " << drive << std::endl;
     }
     else
     {
         std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
         exit(-1);
+    }
+}
+
+/*
+ QEMU_machine
+ Sets the correct machine and ISO backend.
+ */
+void QEMU_machine(QemuContext &args, const std::string &model, const std::string &database)
+{
+    const std::string delimiter = "/";
+    const std::string type = model.substr(0, model.find(delimiter));
+    std::map<std::string, std::string> images = qemuListImages(database);
+
+    for (auto it = images.begin(); it != images.end(); it++)
+    {
+        std::string first = it->first;
+        std::string isopath = it->second;
+
+        if (first.starts_with(model) && fileExists(isopath))
+        {
+            PushArguments(args, "-M", type);
+            PushArguments(args, "-drive", m2_string_format("file=%s,index=%d,media=cdrom", isopath.c_str(), getNumberOfDrives(args)));
+            std::cout << "Using model: " << model << ", type: " << type << ", iso: " << isopath << std::endl;
+            break;
+        }
     }
 }
 
@@ -175,11 +205,14 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
     PushArguments(args, "-display", displayAsString); // display
 }
 
+/**
+ * This needs to fork
+ */
 void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
 {
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
-    auto tappath = string_format("/dev/tap%d", if_nametoindex(tapname.c_str()));
+    auto tappath = m2_string_format("/dev/tap%d", if_nametoindex(tapname.c_str()));
     int fd = open(tappath.c_str(), O_RDWR);
     if (fd == -1)
     {
@@ -187,14 +220,10 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
         exit(-1);
     }
 
-    std::cout << "Using network-device: " << tappath << std::endl;
-    PushArguments(args, "-netdev", string_format("tap,fd=%d,id=guest0", fd));
-    PushArguments(args, "-device", string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
+    std::cout << "Using network-device: " << tappath << ", mac: " << getMacSys(tapname) << std::endl;
+    PushArguments(args, "-netdev", m2_string_format("tap,fd=%d,id=guest0", fd));
+    PushArguments(args, "-device", m2_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
     // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
-
-    PushArguments(args, "-boot", "cd"); // Boot with ISO if disk is missing.
-    PushArguments(args, "-drive", string_format("file=/home/gandalf/Downloads/Applications/ubuntu-20.04-live-server-amd64.iso,index=%d,media=cdrom", getNumberOfDrives(args)));
-    PushSingleArgument(args, "-daemonize");
 
     // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
     std::vector<char *> left_argv;
@@ -206,7 +235,8 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
     }
     left_argv.push_back(NULL); // leave a null
 
-    execvp(left_argv[0], &left_argv[0]);
+    execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
+
     std::cerr << "Error on exec of " << left_argv[0] << ": " << strerror(errno) << std::endl;
     _exit(errno == ENOENT ? 127 : 126);
 }

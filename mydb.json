@@ -1,0 +1,6 @@
+{
+    "images": [
+        { "ubuntu/2004": "/home/gandalf/Downloads/Applications/ubuntu-20.04-live-server-amd64.iso" },
+        { "ubuntu/2001": "/home/gandalf/Downloads/Applications/ubuntu-20.04-live-server-amd64.iso" }
+    ]
+}
