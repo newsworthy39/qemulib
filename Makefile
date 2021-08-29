@@ -3,7 +3,7 @@ obj = $(src:.cpp=.o)
 LDFLAGS = 
 INC=-Iinclude/ -Ijson11
 CXX=g++ -std=c++2a ${INC}
-PACKAGES=qemu-headless qemu-gtk qemu-drives qemu-manage
+PACKAGES=qemu-headless qemu-gtk qemu-drives qemu-image
 BUILDDIR=build
 
 .PHONY: clean
@@ -19,7 +19,7 @@ qemu-gtk: main-gtk.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
 qemu-drives: main-drives.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
-qemu-manage: main-manage.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
+qemu-image: main-image.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 src/qemu-drives.cpp:
@@ -38,4 +38,4 @@ install:
 	cp ${BUILDDIR}/* /usr/local/bin/
 	
 uninstall:
-	rm -f /usr/local/bin/qemu-gtk /usr/local/bin/qemu-headless /usr/local/bin/qemu-images /usr/local/bin/qemu-manage
+	rm -f /usr/local/bin/qemu-gtk /usr/local/bin/qemu-headless /usr/local/bin/qemu-image /usr/local/bin/qemu-manage

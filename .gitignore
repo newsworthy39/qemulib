@@ -3,3 +3,4 @@
 qemu-gtk
 qemu-headless
 qemu-instances
+build/**
