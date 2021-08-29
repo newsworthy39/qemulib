@@ -3,5 +3,5 @@
 qemu-gtk
 qemu-headless
 qemu-instances
-build/*
-json11/*
+build
+json11
