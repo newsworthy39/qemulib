@@ -20,12 +20,12 @@
 #include <net/if.h>
 #include <fstream>
 #include <qemu-context.hpp>
-#include <qemu-drives.hpp>
+#include <qemu-images.hpp>
 
 #define QEMU_LANG "da"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
 #define QEMU_DEFAULT_INSTANCE "t1-medium"
-#define QEMU_DEFAULT_MACHINE  "ubuntu2004"
+#define QEMU_DEFAULT_MACHINE  "ubuntu/2004"
 #define QEMU_DEFAULT_INTERFACE "macvtap0"
 #define QEMU_DEFAULT_IMAGEDB "./mydb.json"
 

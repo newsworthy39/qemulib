@@ -1,6 +1,5 @@
 #include <qemu-hypervisor.hpp>
 
-
 /**
  * Helper functions 
  */
@@ -67,7 +66,7 @@ bool fileExists(const std::string &filename)
  * This defines our instances
  */
 std::map<std::string, std::tuple<int, int>> instancemodels = {
-    {"t1-medium", {1024, 1}},
+    {"t1-small", {1024, 1}},
     {"t1-medium", {2048, 2}},
     {"t1-large", {4096, 4}},
     {"t1-xlarge", {8196, 8}}};

@@ -1,7 +1,6 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
 #include <qemu-context.hpp>
-#include <qemu-drives.hpp>
 
 int main(int argc, char *argv[])
 {

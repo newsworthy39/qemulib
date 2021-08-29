@@ -1,17 +1,15 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
 #include <qemu-context.hpp>
-#include <qemu-drives.hpp>
 
 int main(int argc, char *argv[])
 {
-
+    QemuContext ctx;
+    bool verbose = false;
     std::string instanceargument = QEMU_DEFAULT_INSTANCE;
     std::string tapname = QEMU_DEFAULT_INTERFACE;
     std::string imagedb = QEMU_DEFAULT_IMAGEDB;
-    std::string image   = QEMU_DEFAULT_MACHINE;
-    QemuContext ctx;
-    bool verbose = false;
+    std::string image = QEMU_DEFAULT_MACHINE;
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -36,7 +34,7 @@ int main(int argc, char *argv[])
         {
             tapname = argv[i + 1];
         }
-        
+
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
             QEMU_drive(ctx, argv[i + 1]);
@@ -50,7 +48,7 @@ int main(int argc, char *argv[])
 
     QEMU_instance(ctx, instanceargument);
     QEMU_display(ctx, QEMU_DISPLAY::GTK);
-    QEMU_machine(ctx, image, imagedb);        
+    QEMU_machine(ctx, image, imagedb);
     QEMU_Launch(ctx, tapname);
 
     return EXIT_SUCCESS;

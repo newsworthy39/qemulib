@@ -10,19 +10,19 @@ BUILDDIR=build
 
 all: ${PACKAGES}
 
-qemu-headless: main-headless.o src/qemu-hypervisor.o src/qemu-drives.o  json11/json11.o
+qemu-headless: main-headless.o src/qemu-hypervisor.o src/qemu-images.o  json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
-qemu-gtk: main-gtk.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
+qemu-gtk: main-gtk.o src/qemu-hypervisor.o src/qemu-images.o json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
-qemu-drives: main-drives.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
+qemu-drives: main-drives.o src/qemu-hypervisor.o src/qemu-images.o json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
-qemu-image: main-image.o src/qemu-hypervisor.o src/qemu-drives.o json11/json11.o
+qemu-image: main-image.o src/qemu-hypervisor.o src/qemu-images.o json11/json11.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
-src/qemu-drives.cpp:
+src/qemu-images.cpp:
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 src/qemu-hypervisor.cpp:
@@ -38,4 +38,4 @@ install:
 	cp ${BUILDDIR}/* /usr/local/bin/
 	
 uninstall:
-	rm -f /usr/local/bin/qemu-gtk /usr/local/bin/qemu-headless /usr/local/bin/qemu-image /usr/local/bin/qemu-manage
+	rm -f ${PACKAGES}

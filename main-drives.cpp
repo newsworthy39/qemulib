@@ -1,7 +1,5 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
-#include <qemu-context.hpp>
-#include <qemu-drives.hpp>
 
 #define QEMU_DEFAULT_FILTER "guest-cloud"
 #define QEMU_DEFAULT_GUEST_PATH "/mnt/faststorage/vms/"

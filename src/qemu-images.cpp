@@ -1,4 +1,4 @@
-#include <qemu-drives.hpp>
+#include <qemu-images.hpp>
 
 std::map<std::string, std::string> machineimages = {};
 
@@ -39,9 +39,12 @@ std::map<std::string, std::string> qemuListImages(const std::string& databasepat
   for (std::vector<json11::Json>::iterator it = t2.begin(); it != t2.end(); it++)
   {
     std::map<std::string, json11::Json> objitems = it->object_items();
-    for (const auto &[key, value] : objitems)
-    {
-      machineimages.insert(std::pair<std::string, std::string>(key, value.string_value()));
+    for (const auto &[key, value] : objitems) {
+      auto t3 = value.object_items();
+      
+      // std::cout << t3["default"].string_value() << std::endl;
+      
+      machineimages.insert(std::pair<std::string, std::string>(key, t3["path"].string_value()));
     }
   }
 
