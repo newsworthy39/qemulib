@@ -121,6 +121,7 @@ void QEMU_instance(std::vector<std::string> &args, const std::string &instancear
     PushArguments(args, "-device", "virtio-rng-pci"); // random
     PushArguments(args, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
     PushArguments(args, "-pidfile", m2_string_format("/tmp/%s.pid", guestname.c_str()));
+    PushArguments(args, "-qmp", "unix:test.socket,server,nowait");
     PushArguments(args, "-runas", "gandalf");
     PushArguments(args, "-watchdog", "i6300esb");
     PushArguments(args, "-watchdog-action", "reset");
@@ -128,7 +129,7 @@ void QEMU_instance(std::vector<std::string> &args, const std::string &instancear
     // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
     PushArguments(args, "-smbios", "type=1,serial=ds=None");
     PushArguments(args, "-boot", "cd"); // Boot with ISO if disk is missing.
-    PushSingleArgument(args, "-daemonize");
+    
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -207,7 +208,7 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
 /**
  * This needs to fork
  */
-void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
+void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool daemonize )
 {
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
@@ -223,6 +224,11 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname)
     PushArguments(args, "-netdev", m2_string_format("tap,fd=%d,id=guest0", fd));
     PushArguments(args, "-device", m2_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
     // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
+
+    // check to daemonize
+    if (daemonize)
+        PushSingleArgument(args, "-daemonize");
+        
 
     // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
     std::vector<char *> left_argv;

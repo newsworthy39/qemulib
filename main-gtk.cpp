@@ -49,6 +49,9 @@ int main(int argc, char *argv[])
     QEMU_instance(ctx, instanceargument);
     QEMU_display(ctx, QEMU_DISPLAY::GTK);
     QEMU_machine(ctx, image, imagedb);
+
+    // if all is well, we could fork, here and setup a listener, for
+    // the qemu-sockets, we specify - reading back and forth.
     QEMU_Launch(ctx, tapname);
 
     return EXIT_SUCCESS;

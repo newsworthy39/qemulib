@@ -63,7 +63,7 @@ void QEMU_machine(QemuContext &args, const std::string &model, const std::string
 /**
  * QEMU_launch
  */
-void QEMU_Launch(QemuContext &args, std::string tapname);
+void QEMU_Launch(QemuContext &args, std::string tapname, bool daemonize = true);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
