@@ -3,7 +3,6 @@
 #include <streambuf>
 #include <iostream>
 #include <qemu-hypervisor.hpp>
-#include <qemu-context.hpp>
 #include <qemu-images.hpp>
 
 int main(int argc, char *argv[])
