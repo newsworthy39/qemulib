@@ -19,15 +19,9 @@
 #include <filesystem>
 #include <net/if.h>
 #include <fstream>
-#include <qemu-context.hpp>
 #include <qemu-images.hpp>
 
-#define QEMU_LANG "da"
-#define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
-#define QEMU_DEFAULT_INSTANCE "t1-medium"
-#define QEMU_DEFAULT_MACHINE  "ubuntu/2004"
-#define QEMU_DEFAULT_INTERFACE "macvtap0"
-#define QEMU_DEFAULT_IMAGEDB "./mydb.json"
+typedef std::vector<std::string> QemuContext;
 
 enum QEMU_DISPLAY
 {
@@ -36,6 +30,12 @@ enum QEMU_DISPLAY
     NONE
 };
 
+#define QEMU_LANG "da"
+#define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
+#define QEMU_DEFAULT_INSTANCE "t1-medium"
+#define QEMU_DEFAULT_MACHINE  "ubuntu/2004"
+#define QEMU_DEFAULT_INTERFACE "macvtap0"
+#define QEMU_DEFAULT_IMAGEDB "resources/mydb.json"
 
 std::string getMacSys(std::string tapname);
 std::string displayArgumentAsString(const QEMU_DISPLAY &display);
@@ -48,7 +48,7 @@ void PushArguments(QemuContext &args, std::string key, std::string value);
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_instance(QemuContext &args, const std::string &instanceargument);
+std::string QEMU_instance(QemuContext &args, const std::string &instanceargument);
 
 /*
  * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
@@ -56,14 +56,20 @@ void QEMU_instance(QemuContext &args, const std::string &instanceargument);
 void QEMU_drive(QemuContext &args, const std::string &drive);
 
 /*
- * QEMU_machine (QemuContext &args, const std::string &model, const std::string &dabase)
+ * QEMU_machine (QemuContext &args, const std::string model)
 */
-void QEMU_machine(QemuContext &args, const std::string &model, const std::string &database);
+void QEMU_machine(QemuContext &args, const std::string model);
+
+/*
+ * QEMU_iso (QemuContext &args, const std::string &model, const std::string &dabase)
+*/
+void QEMU_iso(QemuContext &args, const std::string &model, const std::string &database);
 
 /**
- * QEMU_launch
+ * QEMU_launch(QemuContext& args, std::string tapname, bool daemonize)
+ * Launches qemu process, blocking if block is set to true. Defaults is to non-block and return immediately.
  */
-void QEMU_Launch(QemuContext &args, std::string tapname, bool daemonize = true);
+void QEMU_Launch(QemuContext &args, std::string tapname, bool block = false);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);

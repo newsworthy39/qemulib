@@ -111,7 +111,7 @@ void PushArguments(std::vector<std::string> &args, std::string key, std::string 
 /*
  * QEMU_init (int memory, int numcpus)
 */
-void QEMU_instance(std::vector<std::string> &args, const std::string &instanceargument)
+std::string QEMU_instance(std::vector<std::string> &args, const std::string &instanceargument)
 {
     std::string guestname = m2_generate_uuid_v4();
 
@@ -129,7 +129,6 @@ void QEMU_instance(std::vector<std::string> &args, const std::string &instancear
     // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
     PushArguments(args, "-smbios", "type=1,serial=ds=None");
     PushArguments(args, "-boot", "cd"); // Boot with ISO if disk is missing.
-    
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -149,6 +148,7 @@ void QEMU_instance(std::vector<std::string> &args, const std::string &instancear
     PushArguments(args, "-cpu", "host");
 
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
+    return guestname;
 }
 
 void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
@@ -169,7 +169,16 @@ void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
  QEMU_machine
  Sets the correct machine and ISO backend.
  */
-void QEMU_machine(QemuContext &args, const std::string &model, const std::string &database)
+void QEMU_machine(QemuContext &args, const std::string model)
+{
+    const std::string delimiter = "/";
+    const std::string type = model.substr(0, model.find(delimiter));
+    
+    PushArguments(args, "-M", type);
+    std::cout << "Using model: " << type << std::endl;
+}
+
+void QEMU_iso(QemuContext &args, const std::string &model, const std::string &database)
 {
     const std::string delimiter = "/";
     const std::string type = model.substr(0, model.find(delimiter));
@@ -182,9 +191,8 @@ void QEMU_machine(QemuContext &args, const std::string &model, const std::string
 
         if (first.starts_with(model) && fileExists(isopath))
         {
-            PushArguments(args, "-M", type);
             PushArguments(args, "-drive", m2_string_format("file=%s,index=%d,media=cdrom", isopath.c_str(), getNumberOfDrives(args)));
-            std::cout << "Using model: " << model << ", type: " << type << ", iso: " << isopath << std::endl;
+            std::cout << "Using iso: " << isopath << std::endl;
             break;
         }
     }
@@ -208,7 +216,7 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
 /**
  * This needs to fork
  */
-void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool daemonize )
+void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool block)
 {
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
@@ -226,9 +234,8 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool daemo
     // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
 
     // check to daemonize
-    if (daemonize)
+    if (block == false)
         PushSingleArgument(args, "-daemonize");
-        
 
     // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
     std::vector<char *> left_argv;
