@@ -35,7 +35,7 @@ clean:
 	rm -f $(obj) ${BUILDDIR}/* src/*.o
 
 install:
-	cp ${BUILDDIR}/* /usr/local/bin/
+	cp ${BUILDDIR}/* /home/gandalf/bin
 	
 uninstall:
 	rm -f ${PACKAGES}
