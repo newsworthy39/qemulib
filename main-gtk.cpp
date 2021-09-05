@@ -4,7 +4,7 @@
 int main(int argc, char *argv[])
 {
     QemuContext ctx;
-    bool verbose = false, cleanup = false;
+    bool verbose = false;
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string tapname = QEMU_DEFAULT_INTERFACE;
     std::string machine = QEMU_DEFAULT_MACHINE;
@@ -15,7 +15,7 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) (-v) -q -instance {default=" << QEMU_DEFAULT_INSTANCE << "} -interface {default=" << QEMU_DEFAULT_INTERFACE << "}  -machine {default=" << QEMU_DEFAULT_MACHINE << "} -drive hdd (n+1)" << std::endl;
+            std::cout << "Usage(): " << argv[0] << " (-h) (-v) -instance {default=" << QEMU_DEFAULT_INSTANCE << "} -interface {default=" << QEMU_DEFAULT_INTERFACE << "}  -machine {default=" << QEMU_DEFAULT_MACHINE << "} -drive hdd (n+1)" << std::endl;
             exit(-1);
         }
 
@@ -43,23 +43,14 @@ int main(int argc, char *argv[])
         {
             QEMU_drive(ctx, argv[i + 1]);
         }
-        if (std::string(argv[i]).find("-q") != std::string::npos)
-        {
-            cleanup = true;
-        }
+      
     }
 
-    std::string guestid = QEMU_instance(ctx, instance);
+    QEMU_instance(ctx, instance);
     QEMU_display(ctx, display);
     QEMU_machine(ctx, machine);
 
-    // special case. If cleanup is false. QEMU_LAUNCH NEVER RETURNS!
-    if (cleanup == false)
-    {                                     //
-        QEMU_Launch(ctx, tapname, false); //
-    }
-
-    // lets double-fork. - fuck.
+     // lets double-fork. - fuck.
     pid_t parent = fork();
     if (parent == 0)
     {
@@ -69,6 +60,7 @@ int main(int argc, char *argv[])
         int status;
         if (pid == 0)
         {
+            QEMU_Notify_Started(ctx);
             QEMU_Launch(ctx, tapname, true); // where qemu-launch, BLOCKS.
         }
         else
@@ -78,11 +70,7 @@ int main(int argc, char *argv[])
                 pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
                 if (WIFEXITED(status))
                 {
-                    std::string str_pid = "/tmp/" + guestid + ".pid";
-                    std::string str_mon = "/tmp/" + guestid + ".monitor";
-
-                    unlink(str_pid.c_str());
-                    unlink(str_mon.c_str());
+                   QEMU_Notify_Exited(ctx);
                 }
                 else if (WIFSIGNALED(status))
                 {
@@ -98,7 +86,7 @@ int main(int argc, char *argv[])
                 }
             } while (!WIFEXITED(status) && !WIFSIGNALED(status));
         }
-    } // leave parent.
+    } // leave parent, and daemonize.
 
     return EXIT_SUCCESS;
 }

@@ -97,38 +97,57 @@ int getNumberOfDrives(std::vector<std::string> &args)
 }
 
 /** Stack functions */
-void PushSingleArgument(std::vector<std::string> &args, std::string value)
+void PushSingleArgument(QemuContext &ctx, std::string value)
 {
-    args.push_back(value);
+    ctx.push_back(value);
 }
 
-void PushArguments(std::vector<std::string> &args, std::string key, std::string value)
+void PushArguments(QemuContext &ctx, std::string key, std::string value)
 {
-    PushSingleArgument(args, key);
-    PushSingleArgument(args, value);
+    PushSingleArgument(ctx, key);
+    PushSingleArgument(ctx, value);
+}
+
+void QEMU_Generate_ID(QemuContext &ctx)
+{
+    PushArguments(ctx, "-name", m2_generate_uuid_v4());
+}
+
+std::string QEMU_Guest_ID(QemuContext &ctx)
+{
+    QemuContext::iterator p = std::find(ctx.begin(), ctx.end(), "-name");
+    if (p != ctx.end())
+    {
+        return *++(p); // return the next field.
+    }
+    else
+    {
+        QEMU_Generate_ID(ctx);
+        return QEMU_Guest_ID(ctx);
+    }
 }
 
 /*
  * QEMU_init (int memory, int numcpus)
 */
-std::string QEMU_instance(std::vector<std::string> &args, const std::string &instanceargument)
+void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 {
-    std::string guestname = m2_generate_uuid_v4();
+    QEMU_Generate_ID(ctx);
 
     int memory = 2048, cpu = 2;
+    std::string guestname = QEMU_Guest_ID(ctx);
 
-    PushArguments(args, "-name", guestname);
-    PushArguments(args, "-device", "virtio-rng-pci"); // random
-    PushArguments(args, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
-    PushArguments(args, "-pidfile", m2_string_format("/tmp/%s.pid", guestname.c_str()));
-    PushArguments(args, "-qmp", "unix:test.socket,server,nowait");
-    PushArguments(args, "-runas", "gandalf");
-    PushArguments(args, "-watchdog", "i6300esb");
-    PushArguments(args, "-watchdog-action", "reset");
-    PushArguments(args, "-k", QEMU_LANG);
+    PushArguments(ctx, "-device", "virtio-rng-pci"); // random
+    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
+    PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestname.c_str()));
+    PushArguments(ctx, "-qmp", "unix:test.socket,server,nowait");
+    PushArguments(ctx, "-runas", "gandalf");
+    PushArguments(ctx, "-watchdog", "i6300esb");
+    PushArguments(ctx, "-watchdog-action", "reset");
+    PushArguments(ctx, "-k", QEMU_LANG);
     // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
-    PushArguments(args, "-smbios", "type=1,serial=ds=None");
-    PushArguments(args, "-boot", "cd"); // Boot with ISO if disk is missing.
+    PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
+    PushArguments(ctx, "-boot", "cd"); // Boot with ISO if disk is missing.
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -143,12 +162,11 @@ std::string QEMU_instance(std::vector<std::string> &args, const std::string &ins
         }
     }
 
-    PushArguments(args, "-m", m2_string_format("%d", memory));                                       // memory
-    PushArguments(args, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d", cpu, cpu, cpu * 2)); // cpu setup.
-    PushArguments(args, "-cpu", "host");
+    PushArguments(ctx, "-m", m2_string_format("%d", memory));                                       // memory
+    PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d", cpu, cpu, cpu * 2)); // cpu setup.
+    PushArguments(ctx, "-cpu", "host");
 
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
-    return guestname;
 }
 
 void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
@@ -173,7 +191,7 @@ void QEMU_machine(QemuContext &args, const std::string model)
 {
     const std::string delimiter = "/";
     const std::string type = model.substr(0, model.find(delimiter));
-    
+
     PushArguments(args, "-M", type);
     std::cout << "Using model: " << type << std::endl;
 }
@@ -216,7 +234,7 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
 /**
  * This needs to fork
  */
-void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool block)
+void QEMU_Launch(QemuContext &args, std::string tapname, bool block)
 {
     // Finally, open the tap, before turning into a qemu binary, launching
     // the hypervisor.
@@ -231,6 +249,7 @@ void QEMU_Launch(std::vector<std::string> &args, std::string tapname, bool block
     std::cout << "Using network-device: " << tappath << ", mac: " << getMacSys(tapname) << std::endl;
     PushArguments(args, "-netdev", m2_string_format("tap,fd=%d,id=guest0", fd));
     PushArguments(args, "-device", m2_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
+
     // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
 
     // check to daemonize
@@ -270,4 +289,26 @@ std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, 
     }
 
     return files;
+}
+
+void QEMU_Notify_Started(QemuContext &ctx)
+{
+}
+
+void QEMU_Notify_Exited(QemuContext &ctx)
+{
+
+    std::string guestid = QEMU_Guest_ID(ctx);
+    std::string str_mon = m2_string_format("/tmp/%s.monitor", guestid.c_str());
+    std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
+    
+    if (fileExists(str_mon))
+    {
+        unlink(str_mon.c_str());
+    }
+
+    if (fileExists(str_pid))
+    {
+        unlink(str_pid.c_str());
+    }
 }

@@ -4,11 +4,11 @@
 int main(int argc, char *argv[])
 {
     QemuContext ctx;
-    bool verbose = false;
+    bool verbose = false, cleanup = false;
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string tapname = QEMU_DEFAULT_INTERFACE;
     std::string machine = QEMU_DEFAULT_MACHINE;
-    QEMU_DISPLAY display = QEMU_DISPLAY::NONE;
+    QEMU_DISPLAY display = QEMU_DISPLAY::VNC;
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -43,17 +43,52 @@ int main(int argc, char *argv[])
         {
             QEMU_drive(ctx, argv[i + 1]);
         }
-        
+     
     }
 
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, display);
     QEMU_machine(ctx, machine);
 
-    // if all is well, we could fork, here and setup a listener, for
-    // the qemu-sockets, we specify - reading back and forth.
+  
+    // lets double-fork. - fuck.
+    pid_t parent = fork();
+    if (parent == 0)
+    {
 
-    QEMU_Launch(ctx, tapname);
+        // fork and wait, return - then cleanup files.
+        pid_t pid = fork();
+        int status;
+        if (pid == 0)
+        {
+            QEMU_Notify_Started(ctx);
+            QEMU_Launch(ctx, tapname, true); // where qemu-launch, BLOCKS.
+        }
+        else
+        {
+            do
+            {
+                pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+                if (WIFEXITED(status))
+                {
+                    QEMU_Notify_Exited(ctx);
+                    
+                }
+                else if (WIFSIGNALED(status))
+                {
+                    printf("killed by signal %d\n", WTERMSIG(status));
+                }
+                else if (WIFSTOPPED(status))
+                {
+                    printf("stopped by signal %d\n", WSTOPSIG(status));
+                }
+                else if (WIFCONTINUED(status))
+                {
+                    printf("continued\n");
+                }
+            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        }
+    } // leave parent, and daemonize.
 
     return EXIT_SUCCESS;
 }

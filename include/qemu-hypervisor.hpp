@@ -20,6 +20,7 @@
 #include <net/if.h>
 #include <fstream>
 #include <qemu-images.hpp>
+#include <algorithm>
 
 typedef std::vector<std::string> QemuContext;
 
@@ -48,7 +49,7 @@ void PushArguments(QemuContext &args, std::string key, std::string value);
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus)
 */
-std::string QEMU_instance(QemuContext &args, const std::string &instanceargument);
+void QEMU_instance(QemuContext &args, const std::string &instanceargument);
 
 /*
  * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
@@ -80,5 +81,20 @@ void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
  * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
  */
 std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
+
+/**
+ * QEMU_Notify_Exited
+ */
+void QEMU_Notify_Exited(QemuContext &ctx);
+
+/*
+ * QEMU_Notify_Started()
+ */ 
+void QEMU_Notify_Started(QemuContext &ctx);
+
+
+// TODO: Label these helpers.
+std::string QEMU_Guest_ID(QemuContext &ctx);
+void QEMU_Generate_ID(QemuContext &ctx);
 
 #endif
