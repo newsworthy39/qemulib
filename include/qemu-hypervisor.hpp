@@ -35,7 +35,7 @@ enum QEMU_DISPLAY
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
 #define QEMU_DEFAULT_INSTANCE "t1-medium"
 #define QEMU_DEFAULT_MACHINE  "ubuntu/2004"
-#define QEMU_DEFAULT_INTERFACE "macvtap0"
+#define QEMU_DEFAULT_INTERFACE "default/macvtap"
 #define QEMU_DEFAULT_IMAGEDB "resources/mydb.json"
 
 std::string getMacSys(std::string tapname);

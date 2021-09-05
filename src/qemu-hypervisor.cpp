@@ -293,6 +293,7 @@ std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, 
 
 void QEMU_Notify_Started(QemuContext &ctx)
 {
+    
 }
 
 void QEMU_Notify_Exited(QemuContext &ctx)

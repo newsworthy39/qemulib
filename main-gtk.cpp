@@ -1,5 +1,6 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
+#include <qemu-link.hpp>
 
 int main(int argc, char *argv[])
 {
@@ -43,14 +44,13 @@ int main(int argc, char *argv[])
         {
             QEMU_drive(ctx, argv[i + 1]);
         }
-      
     }
 
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, display);
     QEMU_machine(ctx, machine);
 
-     // lets double-fork. - fuck.
+    // lets double-fork. - fuck.
     pid_t parent = fork();
     if (parent == 0)
     {
@@ -60,7 +60,14 @@ int main(int argc, char *argv[])
         int status;
         if (pid == 0)
         {
+
             QEMU_Notify_Started(ctx);
+            
+            if (tapname == QEMU_DEFAULT_INTERFACE)
+            {
+                tapname = allocateLink("enp2s0");
+            }
+
             QEMU_Launch(ctx, tapname, true); // where qemu-launch, BLOCKS.
         }
         else
@@ -70,7 +77,7 @@ int main(int argc, char *argv[])
                 pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
                 if (WIFEXITED(status))
                 {
-                   QEMU_Notify_Exited(ctx);
+                    QEMU_Notify_Exited(ctx);
                 }
                 else if (WIFSIGNALED(status))
                 {
