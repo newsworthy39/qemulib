@@ -135,12 +135,12 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     QEMU_Generate_ID(ctx);
 
     int memory = 2048, cpu = 2;
-    std::string guestname = QEMU_Guest_ID(ctx);
+    std::string guestid = QEMU_Guest_ID(ctx);
 
     PushArguments(ctx, "-device", "virtio-rng-pci"); // random
-    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestname.c_str()));
-    PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestname.c_str()));
-    PushArguments(ctx, "-qmp", "unix:test.socket,server,nowait");
+    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
+    PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestid.c_str()));
+    PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server,nowait", guestid.c_str()));
     PushArguments(ctx, "-runas", "gandalf");
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
@@ -278,7 +278,6 @@ std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, 
 
 void QEMU_Notify_Started(QemuContext &ctx)
 {
-    
 }
 
 void QEMU_Notify_Exited(QemuContext &ctx)
@@ -287,7 +286,8 @@ void QEMU_Notify_Exited(QemuContext &ctx)
     std::string guestid = QEMU_Guest_ID(ctx);
     std::string str_mon = m2_string_format("/tmp/%s.monitor", guestid.c_str());
     std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
-    
+    std::string str_socket = m2_string_format("/tmp/%s.socket", guestid.c_str());
+
     if (fileExists(str_mon))
     {
         unlink(str_mon.c_str());
@@ -296,5 +296,10 @@ void QEMU_Notify_Exited(QemuContext &ctx)
     if (fileExists(str_pid))
     {
         unlink(str_pid.c_str());
+    }
+
+    if (fileExists(str_socket))
+    {
+        unlink(str_socket.c_str());
     }
 }
