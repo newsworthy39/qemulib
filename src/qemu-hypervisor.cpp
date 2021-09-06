@@ -192,6 +192,7 @@ void QEMU_machine(QemuContext &args, const std::string model)
     const std::string delimiter = "/";
     const std::string type = model.substr(0, model.find(delimiter));
 
+    // Add a safe-list, here - match it against QEMU drivers.
     PushArguments(args, "-M", type);
     std::cout << "Using model: " << type << std::endl;
 }
@@ -232,26 +233,10 @@ void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
 }
 
 /**
- * This needs to fork
+ * This needs inside a child-process, who owns everything.
  */
-void QEMU_Launch(QemuContext &args, std::string tapname, bool block)
+void QEMU_Launch(QemuContext &args, bool block)
 {
-    // Finally, open the tap, before turning into a qemu binary, launching
-    // the hypervisor.
-    auto tappath = m2_string_format("/dev/tap%d", if_nametoindex(tapname.c_str()));
-    int fd = open(tappath.c_str(), O_RDWR);
-    if (fd == -1)
-    {
-        std::cerr << "Error opening network-device " << tappath << ": " << strerror(errno) << std::endl;
-        exit(-1);
-    }
-
-    std::cout << "Using network-device: " << tappath << ", mac: " << getMacSys(tapname) << std::endl;
-    PushArguments(args, "-netdev", m2_string_format("tap,fd=%d,id=guest0", fd));
-    PushArguments(args, "-device", m2_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
-
-    // PushArguments(args, "-smbios", "type=41,designation='Onboard LAN',instance=1,kind=ehternet,pcidev=internet-dev")
-
     // check to daemonize
     if (block == false)
         PushSingleArgument(args, "-daemonize");

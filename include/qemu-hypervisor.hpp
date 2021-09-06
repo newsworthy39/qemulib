@@ -17,7 +17,6 @@
 #include <cstring>
 #include <random>
 #include <filesystem>
-#include <net/if.h>
 #include <fstream>
 #include <qemu-images.hpp>
 #include <algorithm>
@@ -70,7 +69,7 @@ void QEMU_iso(QemuContext &args, const std::string &model, const std::string &da
  * QEMU_launch(QemuContext& args, std::string tapname, bool daemonize)
  * Launches qemu process, blocking if block is set to true. Defaults is to non-block and return immediately.
  */
-void QEMU_Launch(QemuContext &args, std::string tapname, bool block = false);
+void QEMU_Launch(QemuContext &args, bool block = false);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
