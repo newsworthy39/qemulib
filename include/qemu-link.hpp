@@ -10,9 +10,12 @@
 #include <linux/if.h>
 #include <string>
 #include <iostream>
+#include <random>
+#include <memory>
 
-std::string allocateLink(std::string masterinterface);
 
-void deleteLink(std::string interface) ;
+std::string QEMU_Allocate_Link(std::string masterinterface);
+
+void QEMU_Delete_Link(std::string interface) ;
 
 #endif
