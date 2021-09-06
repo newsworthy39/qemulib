@@ -10,7 +10,7 @@ BUILDDIR=build
 
 all: ${PACKAGES}
 
-qemu-headless: main-headless.o src/qemu-hypervisor.o src/qemu-images.o  json11/json11.o src/qemu-link.o
+qemu-headless: main-gtk.o src/qemu-hypervisor.o src/qemu-images.o  json11/json11.o src/qemu-link.o
 	$(CXX) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
 qemu-gtk: main-gtk.o src/qemu-hypervisor.o src/qemu-images.o json11/json11.o src/qemu-link.o
