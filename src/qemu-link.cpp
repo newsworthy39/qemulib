@@ -23,10 +23,11 @@ std::string QEMU_Generate_Link_Mac()
     std::stringstream ss;
     int i = 0, count = 0;
     ss << std::hex;
-    for (i = 0; i < 12; i++)
+    ss << "02:";
+    for (i = 0; i < 10; i++)
     {
         ss << dis(gen);
-        if (++count == 2 && i < 10)
+        if (++count == 2 && i < 8)
         {
             ss << ":";
             count = 0;
@@ -124,7 +125,7 @@ int QEMU_Open_Link(QemuContext &ctx, std::string tapname)
     }
 
     std::cout << "Using network-device: " << tappath << ", mac: " << getMacSys(tapname) << std::endl;
-    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest0,fd=%d", fd));
+    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest0,fd=%d,vhost=on", fd));
     PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", getMacSys(tapname).c_str()));
 
     return fd;
