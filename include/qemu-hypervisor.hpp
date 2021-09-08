@@ -33,7 +33,7 @@ enum QEMU_DISPLAY
 #define QEMU_LANG "da"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
 #define QEMU_DEFAULT_INSTANCE "t1-medium"
-#define QEMU_DEFAULT_MACHINE  "ubuntu/2004"
+#define QEMU_DEFAULT_MACHINE  "q35"
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
 #define QEMU_DEFAULT_IMAGEDB "resources/mydb.json"
 
@@ -69,7 +69,7 @@ void QEMU_iso(QemuContext &args, const std::string &model, const std::string &da
  * QEMU_launch(QemuContext& args, std::string tapname, bool daemonize)
  * Launches qemu process, blocking if block is set to true. Defaults is to non-block and return immediately.
  */
-void QEMU_Launch(QemuContext &args, bool block = false);
+void QEMU_launch(QemuContext &args, bool block = false);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
@@ -90,6 +90,26 @@ void QEMU_Notify_Exited(QemuContext &ctx);
  * QEMU_Notify_Started()
  */ 
 void QEMU_Notify_Started(QemuContext &ctx);
+
+/*
+ * QEMU_Notify_Started()
+ */ 
+void QEMU_Notify_Register(QemuContext &ctx);
+
+/*
+ * QEMU_Notify_Started()
+ */ 
+void QEMU_Notify_Unregister(QemuContext &ctx);
+
+/**
+ * QEMU_accept_incoming
+ */
+void QEMU_Accept_Incoming(QemuContext &ctx, int port);
+
+/*
+ * QEMU_ephimeral()
+ */
+void QEMU_ephimeral(QemuContext &ctx);
 
 
 // TODO: Label these helpers.

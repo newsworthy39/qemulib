@@ -110,7 +110,9 @@ void PushArguments(QemuContext &ctx, std::string key, std::string value)
 
 void QEMU_Generate_ID(QemuContext &ctx)
 {
-    PushArguments(ctx, "-name", m2_generate_uuid_v4());
+    std::string id = m2_generate_uuid_v4();
+    PushArguments(ctx, "-name", id);
+    std::cout << "Using name: " << id << std::endl;
 }
 
 std::string QEMU_Guest_ID(QemuContext &ctx)
@@ -127,9 +129,18 @@ std::string QEMU_Guest_ID(QemuContext &ctx)
     }
 }
 
+/**
+ * QEMU_Accept_Incoming (QemuContext, int port)
+ */
+void QEMU_Accept_Incoming(QemuContext &ctx, int port)
+{
+    PushArguments(ctx, "-incoming", m2_string_format("tcp:0:%d", port));
+}
+
 /*
  * QEMU_init (int memory, int numcpus)
-*/
+ * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
+ */
 void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 {
     QEMU_Generate_ID(ctx);
@@ -147,7 +158,8 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-k", QEMU_LANG);
     // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
     PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
-    PushArguments(ctx, "-boot", "cd"); // Boot with ISO if disk is missing.
+    PushArguments(ctx, "-boot", "menu=off,order=cdn,once=c,strict=off"); // Boot with ISO if disk is missing.
+    PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -163,7 +175,7 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     }
 
     PushArguments(ctx, "-m", m2_string_format("%d", memory));                                       // memory
-    PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d", cpu, cpu, cpu * 2)); // cpu setup.
+    PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d,threads=1,dies=1", cpu, cpu, cpu * 2)); // cpu setup.
     PushArguments(ctx, "-cpu", "host");
 
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
@@ -173,7 +185,7 @@ void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
-        PushArguments(args, "-drive", m2_string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=off,aio=native", drive.c_str(), getNumberOfDrives(args)));
+        PushArguments(args, "-drive", m2_string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str(), getNumberOfDrives(args)));
         std::cout << "Using drive: " << drive << std::endl;
     }
     else
@@ -217,25 +229,33 @@ void QEMU_iso(QemuContext &args, const std::string &model, const std::string &da
     }
 }
 
-void QEMU_display(std::vector<std::string> &args, const QEMU_DISPLAY &display)
+void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
 {
-    std::string displayAsString = "gtk";
     if (display == QEMU_DISPLAY::NONE)
     {
-        displayAsString = "none";
+        PushArguments(ctx, "-display", "none"); // display
     }
     if (display == QEMU_DISPLAY::VNC)
     {
-        displayAsString = "vnc=:1";
+        PushArguments(ctx, "-vnc", "localhostk:0,to=99"); // display
+    }
+    if (display == QEMU_DISPLAY::GTK)
+    {
+        PushArguments(ctx, "-display", "gtk"); // display
     }
 
-    PushArguments(args, "-display", displayAsString); // display
+//    PushArguments(ctx, "-vga", "virtio"); // set vga card.
+}
+
+void QEMU_ephimeral(QemuContext &ctx)
+{
+    PushSingleArgument(ctx, "-snapshot"); // snapshot
 }
 
 /**
  * This needs inside a child-process, who owns everything.
  */
-void QEMU_Launch(QemuContext &args, bool block)
+void QEMU_launch(QemuContext &args, bool block)
 {
     // check to daemonize
     if (block == false)
