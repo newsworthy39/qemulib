@@ -10,6 +10,8 @@ int main(int argc, char *argv[])
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string tapname = QEMU_DEFAULT_INTERFACE;
     std::string machine = QEMU_DEFAULT_MACHINE;
+    int port = 4444, snapshot = 0;
+
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
 
     if (command.find("-headless") != std::string::npos)
@@ -22,7 +24,7 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) (-v) -instance {default=" << QEMU_DEFAULT_INSTANCE << "} -interface {default=" << QEMU_DEFAULT_INTERFACE << "}  -machine {default=" << QEMU_DEFAULT_MACHINE << "} -drive hdd (n+1)" << std::endl;
+            std::cout << "Usage(): " << argv[0] << " (-h) (-s) (-v) -a {default=4444} -instance {default=" << QEMU_DEFAULT_INSTANCE << "} -interface {default=" << QEMU_DEFAULT_INTERFACE << "}  -machine {default=" << QEMU_DEFAULT_MACHINE << "}  -iso {default=none} -drive hdd (n+1)" << std::endl;
             exit(-1);
         }
 
@@ -50,6 +52,16 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
             QEMU_drive(ctx, argv[i + 1]);
+        }
+
+        if (std::string(argv[i]).find("-a") != std::string::npos  && (i + 1 < argc))
+        {
+            QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
+        }
+
+        if (std::string(argv[i]).find("-s") != std::string::npos  )
+        {
+            QEMU_ephimeral(ctx);
         }
     }
 
