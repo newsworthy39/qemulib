@@ -14,7 +14,7 @@
 
 #define QEMU_DEFAULT_REDIS "10.0.94.254"
 
-void onLaunchMessage(json11::Json json);
+void onLaunchMessage(json11::Json::object json);
 void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata);
 
 #endif
