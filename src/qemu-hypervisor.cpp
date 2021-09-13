@@ -71,8 +71,9 @@ std::map<std::string, std::tuple<int, int>> instancemodels = {
     {"t1-large", {4096, 4}},
     {"t1-xlarge", {8196, 8}}};
 
-
-
+/*
+ * This allows us, to count the drives, to insert them in proper order.
+ */
 int getNumberOfDrives(std::vector<std::string> &args)
 {
     int driveCount = 0;
