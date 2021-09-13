@@ -52,7 +52,7 @@ void QEMU_instance(QemuContext &args, const std::string &instanceargument);
 /*
  * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_drive(QemuContext &args, const std::string &drive);
+int QEMU_drive(QemuContext &args, const std::string &drive);
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)
