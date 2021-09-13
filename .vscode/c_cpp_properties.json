@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/usr/include/libnl3"
+                "/usr/include/libnl3",
+                "/usr/include/event2"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
