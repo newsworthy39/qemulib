@@ -3,6 +3,7 @@
 std::string redis = QEMU_DEFAULT_REDIS;
 std::string username = "redis";
 std::string password = "foobared";
+std::string clientname = hostd_generate_client_name();
 
 // NASTY.
 void *hi_malloc(unsigned long size)
@@ -24,15 +25,37 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
+std::string hostd_generate_client_name()
+{
+    static std::random_device r;
+    static std::default_random_engine e1(r());
+    static std::uniform_int_distribution<int> dis(0, 15);
+
+    std::stringstream ss;
+    int i = 0, count = 0;
+    ss << std::hex;
+    for (i = 0; i < 8; i++)
+    {
+        ss << dis(e1);
+    }
+
+    return ss.str();
+}
+
 void onLaunchMessage(json11::Json::object arguments)
 {
     // First, get the ARN, and then we setup the context.
     std::string arn = arguments["arn"].string_value();
+    if (arn.empty())
+    {
+        return;
+    }
     std::cout << "Launching: " << arn << std::endl;
 
     QemuContext ctx;
     int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
-    if (result == -1) {
+    if (result == -1)
+    {
         return;
     }
     QEMU_ephimeral(ctx);
@@ -84,7 +107,8 @@ void onLaunchMessage(json11::Json::object arguments)
 
                     std::string str_error;
                     json11::Json jsn = json11::Json::parse(redisr->element[2]->str, str_error);
-                    if (!str_error.empty()) {
+                    if (!str_error.empty())
+                    {
                         continue;
                     }
 
@@ -109,7 +133,6 @@ void onLaunchMessage(json11::Json::object arguments)
                     // consume message
                     freeReplyObject(redisr);
                     close(s);
-                 
                 }
             }
 
@@ -163,7 +186,8 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             json11::Json jsobj = jsn.object_items();
             std::string jsclass = jsobj["execute"].string_value();
             json11::Json::object arguments = jsobj["arguments"].object_items();
-            if (!arguments.empty()) {
+            if (arguments.empty())
+            {
                 return;
             }
 
@@ -172,6 +196,12 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             {
                 std::thread t(&onLaunchMessage, arguments);
                 t.detach();
+            }
+
+            // But we can also, migrate it
+            if (jsclass == "migrate")
+            {
+                std::cout << "MIGRATE not-implemented" << std::endl;
             }
         }
     }
@@ -188,7 +218,7 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} " << std::endl;
+            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -clientname {default=" << clientname << "}" << std::endl;
             exit(-1);
         }
 
@@ -223,7 +253,7 @@ int main(int argc, char *argv[])
     std::cout << " Connecting to redis " << redis << std::endl;
     redisAsyncCommand(c, NULL, NULL, m3_string_format("AUTH %s", password.c_str()).c_str());
     redisLibeventAttach(c, base);
-    redisAsyncCommand(c, onActivationMessage, NULL, "SUBSCRIBE activation");
+    redisAsyncCommand(c, onActivationMessage, NULL, m3_string_format("SUBSCRIBE activation-%s", clientname.c_str()).c_str());
     std::cout << " Subscribed to activation " << std::endl;
     event_base_dispatch(base);
 
