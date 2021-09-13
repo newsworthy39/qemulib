@@ -16,5 +16,6 @@
 
 void onLaunchMessage(json11::Json::object json);
 void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata);
+std::string hostd_generate_client_name();
 
 #endif
