@@ -37,7 +37,6 @@ enum QEMU_DISPLAY
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
 #define QEMU_DEFAULT_IMAGEDB "resources/mydb.json"
 
-std::string getMacSys(std::string tapname);
 std::string displayArgumentAsString(const QEMU_DISPLAY &display);
 int getNumberOfDrives(std::vector<std::string> &args);
 

@@ -71,19 +71,7 @@ std::map<std::string, std::tuple<int, int>> instancemodels = {
     {"t1-large", {4096, 4}},
     {"t1-xlarge", {8196, 8}}};
 
-std::string getMacSys(std::string tapname)
-{
-    std::string mac;
-    ;
-    auto tapfile = m2_string_format("/sys/class/net/%s/address", tapname.c_str());
-    std::ifstream myfile(tapfile.c_str());
-    if (myfile.is_open())
-    {                  // always check whether the file is open
-        myfile >> mac; // pipe file's content into stream
-    }
 
-    return mac;
-}
 
 int getNumberOfDrives(std::vector<std::string> &args)
 {
@@ -237,7 +225,7 @@ void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
     }
     if (display == QEMU_DISPLAY::VNC)
     {
-        PushArguments(ctx, "-vnc", "localhostk:0,to=99"); // display
+        PushArguments(ctx, "-vnc", "localhost:0,to=99"); // display
     }
     if (display == QEMU_DISPLAY::GTK)
     {
