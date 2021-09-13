@@ -24,17 +24,20 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-void onLaunchMessage(json11::Json json)
+void onLaunchMessage(json11::Json::object arguments)
 {
+    // First, get the ARN, and then we setup the context.
+    std::string arn = arguments["arn"].string_value();
+    std::cout << "Launching: " << arn << std::endl;
 
-    std::cout << json.dump() << std::endl;
-
-    // Next, setup QemuContext
     QemuContext ctx;
-    QEMU_drive(ctx, "/mnt/faststorage/vms/guest-cloud-test00.img");
+    int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
+    if (result == -1) {
+        return;
+    }
     QEMU_ephimeral(ctx);
     QEMU_instance(ctx, QEMU_DEFAULT_INSTANCE);
-    QEMU_display(ctx, QEMU_DISPLAY::GTK);
+    QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
     std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
     QEMU_Notify_Started(ctx); // Notify Qemu started.
@@ -78,11 +81,6 @@ void onLaunchMessage(json11::Json json)
             {
                 if (redisr->type == REDIS_REPLY_ARRAY)
                 {
-
-                    for (int j = 0; j < redisr->elements; j++)
-                    {
-                        printf("%u) %s\n", j, redisr->element[j]->str);
-                    }
 
                     std::string str_error;
                     json11::Json jsn = json11::Json::parse(redisr->element[2]->str, str_error);
@@ -164,11 +162,15 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             // To find, the white rabbit, first look at the top-hat.
             json11::Json jsobj = jsn.object_items();
             std::string jsclass = jsobj["execute"].string_value();
+            json11::Json::object arguments = jsobj["arguments"].object_items();
+            if (!arguments.empty()) {
+                return;
+            }
 
+            // Next, we launch it.
             if (jsclass == "launch")
             {
-                std::cout << "Class " << jsclass << std::endl;
-                std::thread t(&onLaunchMessage, jsn);
+                std::thread t(&onLaunchMessage, arguments);
                 t.detach();
             }
         }
