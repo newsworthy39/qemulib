@@ -169,17 +169,18 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
-void QEMU_drive(std::vector<std::string> &args, const std::string &drive)
+int QEMU_drive(std::vector<std::string> &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
         PushArguments(args, "-drive", m2_string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str(), getNumberOfDrives(args)));
         std::cout << "Using drive: " << drive << std::endl;
+        return 0;
     }
     else
     {
         std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
-        exit(-1);
+        return -1;
     }
 }
 
