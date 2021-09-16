@@ -50,120 +50,159 @@ void onLaunchMessage(json11::Json::object arguments)
     {
         return;
     }
-    std::cout << "Launching: " << arn << std::endl;
 
     QemuContext ctx;
+    QEMU_allocate_drive(arn, 32);
     int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
     if (result == -1)
     {
         return;
     }
-    QEMU_ephimeral(ctx);
+
+    //QEMU_ephimeral(ctx);
     QEMU_instance(ctx, QEMU_DEFAULT_INSTANCE);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
     std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
     QEMU_Notify_Started(ctx); // Notify Qemu started.
 
+    std::cout << "Launching: " << arn << ", pid: " << getpid() << std::endl;
+
+    int status_guest;
+    pid_t guest = fork();
+    if (guest == 0)
+    {
+        // Setup redis.
+        std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
+        redisContext *c = redisConnect(redis.c_str(), 6379);
+        if (c == NULL || c->err)
+        {
+            if (c)
+            {
+                std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
+                exit(-1);
+            }
+            else
+            {
+                printf("Can't allocate redis context\n");
+            }
+        }
+
+        // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
+        redisReply *redisr;
+        redisr = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
+        freeReplyObject(redisr);
+        redisr = (redisReply *)redisCommand(c, "SUBSCRIBE qmp-%s ", guestid.c_str());
+        freeReplyObject(redisr);
+
+        std::cout << "redis-listener (" << getpid() << ") hi." << std::endl;
+
+        // Start the back-and-forth loop
+        while (redisGetReply(c, (void **)&redisr) == REDIS_OK)
+        {
+            if (redisr->type == REDIS_REPLY_ARRAY)
+            {
+
+                std::string str_error;
+                json11::Json jsn = json11::Json::parse(redisr->element[2]->str, str_error);
+                if (!str_error.empty())
+                {
+                    continue;
+                }
+
+                json11::Json jsn_object = jsn.object_items();
+                std::string command = jsn_object["execute"].string_value();
+
+                // TODO: intercept and parse json, in reply-str, find "exit" and stuff,
+                std::cout << "Forward to QMP-socket " << redisr->element[2]->str << std::endl;
+                char str[4096];
+                int s = QEMU_OpenQMPSocket(ctx);
+                int t = send(s, redisr->element[2]->str, strlen(redisr->element[2]->str) + 1, 0);
+                sleep(1); // This is a variable point, that needs to be looked at. e-poll?
+                t = recv(s, str, 4096, 0);
+
+                if (command.compare("system_powerdown") == 0)
+                {
+                    freeReplyObject(redisr);
+                    close(s);
+                    break;
+                }
+
+                // consume message
+                freeReplyObject(redisr);
+                close(s);
+            }
+        }
+
+        std::cout << "redis-listener (" << getpid() << ") bye." << std::endl;
+        redisFree(c);
+        exit(0);
+    }
+
+    std::cout << "parent-listener (" << getpid() << ") continuing parent." << std::endl;
+
     // fork and wait, return - then cleanup files.
     pid_t pid = fork();
     int status;
     if (pid == 0)
     {
+        std::cout << "qemu-launcher (" << getpid() << ") hi." << std::endl;
         QEMU_launch(ctx, true); // where qemu-launch, BLOCKS.
+        exit(0);
     }
-    else
+
+    // Finally, we wait until the pid have returned, and send notifications.
+    std::cout << "parent-listener (" << getpid() << ") waiting for child: " << pid << std::endl;
+    pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+    if (WIFEXITED(status))
     {
-        pid_t guest = fork();
-        if (guest == 0)
-        {
+        QEMU_Notify_Exited(ctx);
+        QEMU_Delete_Link(ctx, tapname);
 
-            // Setup redis.
-            std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
-            redisContext *c = redisConnect(redis.c_str(), 6379);
-            if (c == NULL || c->err)
+        // Hack, to avoid defunct processes.
+        std::string powerdown = "{ \"execute\": \"system_powerdown\" }";
+        std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
+        redisContext *c = redisConnect(redis.c_str(), 6379);
+        if (c == NULL || c->err)
+        {
+            if (c)
             {
-                if (c)
-                {
-                    std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
-                    exit(-1);
-                }
-                else
-                {
-                    printf("Can't allocate redis context\n");
-                }
+                std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
+                exit(-1);
             }
-
-            // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-            redisReply *redisr;
-            redisr = (redisReply *)redisCommand(c, m3_string_format("AUTH %s", password.c_str()).c_str());
-            freeReplyObject(redisr);
-            redisr = (redisReply *)redisCommand(c, m3_string_format("SUBSCRIBE qmp-%s", guestid.c_str()).c_str());
-            freeReplyObject(redisr);
-
-            // Start the back-and-forth loop
-            while (redisGetReply(c, (void **)&redisr) == REDIS_OK)
+            else
             {
-                if (redisr->type == REDIS_REPLY_ARRAY)
-                {
-
-                    std::string str_error;
-                    json11::Json jsn = json11::Json::parse(redisr->element[2]->str, str_error);
-                    if (!str_error.empty())
-                    {
-                        continue;
-                    }
-
-                    json11::Json jsn_object = jsn.object_items();
-                    std::string command = jsn_object["execute"].string_value();
-
-                    // TODO: intercept and parse json, in reply-str, find "exit" and stuff,
-                    std::cout << "Forward to QMP-socket " << redisr->element[2]->str << std::endl;
-                    char str[4096];
-                    int s = QEMU_OpenQMPSocket(ctx);
-                    int t = send(s, redisr->element[2]->str, strlen(redisr->element[2]->str) + 1, 0);
-                    sleep(1); // This is a variable point, that needs to be looked at. e-poll?
-                    t = recv(s, str, 4096, 0);
-
-                    if (command.compare("system_powerdown") == 0)
-                    {
-                        freeReplyObject(redisr);
-                        close(s);
-                        break;
-                    }
-
-                    // consume message
-                    freeReplyObject(redisr);
-                    close(s);
-                }
+                printf("Can't allocate redis context\n");
             }
-
-            redisFree(c);
         }
 
-        // Finally, we wait until the pid have returned, and send notifications.
-        std::cout << "Waiting for sub-process, to exit." << std::endl;
-        pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-        if (WIFEXITED(status))
-        {
-            QEMU_Notify_Exited(ctx);
-            QEMU_Delete_Link(ctx, tapname);
-        }
-        else if (WIFSIGNALED(status))
-        {
-            printf("killed by signal %d\n", WTERMSIG(status));
-        }
-        else if (WIFSTOPPED(status))
-        {
-            printf("stopped by signal %d\n", WSTOPSIG(status));
-        }
-        else if (WIFCONTINUED(status))
-        {
-            printf("continued\n");
-        }
+        // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
+        redisReply *redisr1;
+        redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
+        freeReplyObject(redisr1);
+        redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", guestid.c_str(), powerdown.c_str());
+        freeReplyObject(redisr1);
+        redisFree(c);
 
-        std::cout << "Bye." << std::endl;
+        std::cout << "parent-listener (" << getpid() << ") will wait for redis-listener: " << guest << std::endl;
+
+        // We need the redis-kid, too:
+        pid_t x = waitpid(guest, &status_guest, WUNTRACED | WCONTINUED);
     }
+    else if (WIFSIGNALED(status))
+    {
+        printf("killed by signal %d\n", WTERMSIG(status));
+    }
+    else if (WIFSTOPPED(status))
+    {
+        printf("stopped by signal %d\n", WSTOPSIG(status));
+    }
+    else if (WIFCONTINUED(status))
+    {
+        printf("continued\n");
+    }
+
+    std::cout << "parent-listener (" << getpid() << ") bye." << std::endl;
 }
 
 void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
