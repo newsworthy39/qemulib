@@ -45,10 +45,17 @@ std::string hostd_generate_client_name()
 void onLaunchMessage(json11::Json::object arguments)
 {
     // First, get the ARN, and then we setup the context.
+    std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string arn = arguments["arn"].string_value();
     if (arn.empty())
     {
         return;
+    }
+
+    // Allow for instance.
+    if (!arguments["instance"].string_value().empty())
+    {
+        instance = arguments["instance"].string_value();
     }
 
     QemuContext ctx;
@@ -60,7 +67,7 @@ void onLaunchMessage(json11::Json::object arguments)
     }
 
     //QEMU_ephimeral(ctx);
-    QEMU_instance(ctx, QEMU_DEFAULT_INSTANCE);
+    QEMU_instance(ctx, instance);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
     std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
@@ -222,6 +229,9 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
         {
             std::string err;
             json11::Json jsn = json11::Json::parse(r->element[2]->str, err);
+            if (!err.empty()) {
+                std::cerr << "Could not parse JSON" << std::endl;
+            }
 
             // To find, the white rabbit, first look at the top-hat.
             json11::Json jsobj = jsn.object_items();
