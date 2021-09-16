@@ -35,7 +35,7 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} << -uuidv4 " << std::endl;
+            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -uuidv4 " << std::endl;
             exit(-1);
         }
 
@@ -64,7 +64,7 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (!uuidv4.empty()) {
+    if (uuidv4.empty()) {
         std::cerr << "Missing UUIDv4 in -uuidv4-flag." << std::endl;
     }
 
@@ -85,10 +85,11 @@ int main(int argc, char *argv[])
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
     
+    std::string launch = "{ \"execute\": \"system_powerdown\" }";
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
-    redisr1 = (redisReply *)redisCommand(c, "PUBLISH activation-%s \"{ \"execute\": \"system_powerdown\" } }", uuidv4.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", uuidv4.c_str(), launch.c_str());
     freeReplyObject(redisr1);
     redisFree(c);
 
