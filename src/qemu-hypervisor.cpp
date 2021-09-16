@@ -163,14 +163,14 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
         }
     }
 
-    PushArguments(ctx, "-m", m2_string_format("%d", memory));                                       // memory
+    PushArguments(ctx, "-m", m2_string_format("%d", memory));                                                        // memory
     PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d,threads=1,dies=1", cpu, cpu, cpu * 2)); // cpu setup.
     PushArguments(ctx, "-cpu", "host");
 
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
-int QEMU_drive(std::vector<std::string> &args, const std::string &drive)
+int QEMU_drive(QemuContext &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
@@ -183,6 +183,39 @@ int QEMU_drive(std::vector<std::string> &args, const std::string &drive)
         std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
         return -1;
     }
+}
+
+void QEMU_allocate_drive(std::string id, ssize_t sz)
+{
+
+    int status = 0;
+    pid_t child = fork();
+
+    if (child == 0)
+    {
+        std::string t = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
+
+        // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
+        std::vector<char *> left_argv;
+        left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_IMG));
+        left_argv.push_back(const_cast<char *>("create"));
+        left_argv.push_back(const_cast<char *>("-f"));
+        left_argv.push_back(const_cast<char *>("qcow2"));
+        left_argv.push_back(const_cast<char *>("-b"));
+        left_argv.push_back(const_cast<char *>("/mnt/faststorage/vms/ubuntu2004backingfile.img"));
+        left_argv.push_back(const_cast<char *>(t.c_str()));
+        left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
+        left_argv.push_back(NULL); // leave a null
+
+        execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
+    }
+    else
+    {
+        // Finally, we wait until the pid have returned, and send notifications.
+        pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
+    }
+    while (!WIFEXITED(status) && !WIFSIGNALED(status))
+        ;
 }
 
 /*
@@ -234,7 +267,7 @@ void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
         PushArguments(ctx, "-display", "gtk"); // display
     }
 
-//    PushArguments(ctx, "-vga", "virtio"); // set vga card.
+    //    PushArguments(ctx, "-vga", "virtio"); // set vga card.
 }
 
 void QEMU_ephimeral(QemuContext &ctx)

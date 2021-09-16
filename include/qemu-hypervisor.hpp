@@ -31,6 +31,7 @@ enum QEMU_DISPLAY
 };
 
 #define QEMU_LANG "da"
+#define QEMU_DEFAULT_IMG    "/usr/bin/qemu-img"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
 #define QEMU_DEFAULT_INSTANCE "t1-medium"
 #define QEMU_DEFAULT_MACHINE  "q35"
@@ -74,6 +75,12 @@ void QEMU_launch(QemuContext &args, bool block = false);
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
  */
 void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
+
+/**
+ * QEMU_allocate_drive((std::string path, ssize_t sz);
+ * creates a new drive, with ubuntu backingfile, using sz (size) gigabytes at the id supplied
+ */
+void QEMU_allocate_drive(std::string id, ssize_t sz);
 
 /**
  * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
