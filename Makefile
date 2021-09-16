@@ -4,13 +4,19 @@ LDFLAGS = -lnl-route-3 -lnl-3
 HOSTLDFLAGS = ${LDFLAGS} -lhiredis -levent -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3
 CXX=g++ -std=c++2a ${INC}
-PACKAGES=qemu-kvm qemu-drives qemu-image qemu-hostd
+PACKAGES=qemu-kvm qemu-drives qemu-image qemu-hostd qemu-launch qemu-stop
 BUILDDIR=build
 FLAGS=-o3
 
 .PHONY: clean
 
 all: ${PACKAGES}
+
+qemu-stop: main-stop.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
+
+qemu-launch: main-launch.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
 qemu-hostd: main-hostd.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
