@@ -74,8 +74,10 @@ void onLaunchMessage(json11::Json::object arguments)
     }
     else
     {
-        do
+        pid_t guest = fork();
+        if (guest == 0)
         {
+
             // Setup redis.
             std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
             redisContext *c = redisConnect(redis.c_str(), 6379);
@@ -137,28 +139,28 @@ void onLaunchMessage(json11::Json::object arguments)
             }
 
             redisFree(c);
-            std::cout << "Waiting for sub-process, to exit." << std::endl;
+        }
 
-            // Finally, we wait until the pid have returned, and send notifications.
-            pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-            if (WIFEXITED(status))
-            {
-                QEMU_Notify_Exited(ctx);
-                QEMU_Delete_Link(ctx, tapname);
-            }
-            else if (WIFSIGNALED(status))
-            {
-                printf("killed by signal %d\n", WTERMSIG(status));
-            }
-            else if (WIFSTOPPED(status))
-            {
-                printf("stopped by signal %d\n", WSTOPSIG(status));
-            }
-            else if (WIFCONTINUED(status))
-            {
-                printf("continued\n");
-            }
-        } while (!WIFEXITED(status) && !WIFSIGNALED(status));
+        // Finally, we wait until the pid have returned, and send notifications.
+        std::cout << "Waiting for sub-process, to exit." << std::endl;
+        pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+        if (WIFEXITED(status))
+        {
+            QEMU_Notify_Exited(ctx);
+            QEMU_Delete_Link(ctx, tapname);
+        }
+        else if (WIFSIGNALED(status))
+        {
+            printf("killed by signal %d\n", WTERMSIG(status));
+        }
+        else if (WIFSTOPPED(status))
+        {
+            printf("stopped by signal %d\n", WSTOPSIG(status));
+        }
+        else if (WIFCONTINUED(status))
+        {
+            printf("continued\n");
+        }
 
         std::cout << "Bye." << std::endl;
     }
@@ -240,6 +242,10 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-password") != std::string::npos && (i + 1 < argc))
         {
             password = argv[i + 1];
+        }
+        if (std::string(argv[i]).find("-clientname") != std::string::npos && (i + 1 < argc))
+        {
+            clientname = argv[i + 1];
         }
     }
 
