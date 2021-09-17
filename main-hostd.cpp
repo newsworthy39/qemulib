@@ -49,7 +49,7 @@ void onLaunchMessage(json11::Json::object arguments)
     std::string arn = arguments["arn"].string_value();
     if (arn.empty())
     {
-        return;
+        std::cerr << "ARN not supplied" << std::endl;
     }
 
     // Allow for instance.
@@ -253,6 +253,12 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             if (jsclass == "migrate")
             {
                 std::cout << "MIGRATE not-implemented" << std::endl;
+            }
+
+            // But we can also, migrate it
+            if (jsclass == "register")
+            {
+                std::cout << "register not-implemented" << std::endl;
             }
         }
     }
