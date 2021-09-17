@@ -185,12 +185,13 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
     }
 }
 
+/**
+ * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
+ */
 void QEMU_allocate_drive(std::string id, ssize_t sz)
 {
-
     int status = 0;
     pid_t child = fork();
-
     if (child == 0)
     {
         std::string t = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
@@ -214,8 +215,7 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
         // Finally, we wait until the pid have returned, and send notifications.
         pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
     }
-    while (!WIFEXITED(status) && !WIFSIGNALED(status))
-        ;
+    
 }
 
 /*
