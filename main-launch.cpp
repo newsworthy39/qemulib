@@ -29,14 +29,15 @@ int main(int argc, char *argv[])
     std::string username = "redis";
     std::string password = "foobared";
     std::string client = "14ddf77c";
+    std::string arn = "";
 
-    for (int i = 1; i < argc; ++i)
+        for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
             std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -instance {default=" << QEMU_DEFAULT_INSTANCE << "}"
-                      << " -client " << std::endl;
+                      << " -client {default=" << client << "} arn (e.q compute://123456789) " << std::endl;
             exit(-1);
         }
 
@@ -63,10 +64,26 @@ int main(int argc, char *argv[])
         {
             instance = argv[i + 1];
         }
+
+        if (std::string(argv[i]).find("compute://") != std::string::npos )
+        {
+            
+            const std::string delimiter = "://";
+            arn = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3 );
+        }
     }
 
+    if (arn.empty()) {
+        std::cerr << "arn not supplied" << std::endl;
+        exit(-1);
+    }
+
+    std::cout << "Will launch compute://" << arn << std::endl;
+
     // Hack, to avoid defunct processes.
-    redisContext *c = redisConnect(redis.c_str(), 6379);
+    struct timeval timeout = { 1, 500000 }; // 1.5 seconds timeout
+
+    redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
     {
         if (c)
@@ -81,13 +98,11 @@ int main(int argc, char *argv[])
     }
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string launch = m3_string_format("{ \"execute\": \"launch\", \"arguments\": { \"arn\": \"mj-tester\", \"instance\": \"%s\" } }", instance.c_str());
+    std::string launch = m3_string_format("{ \"execute\": \"launch\", \"arguments\": { \"arn\": \"%s\", \"instance\": \"%s\" } }", arn.c_str(), instance.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
     redisr1 = (redisReply *)redisCommand(c, "PUBLISH activation-%s %s", client.c_str(), launch.c_str());
-    
-    
 
     freeReplyObject(redisr1);
     redisFree(c);
