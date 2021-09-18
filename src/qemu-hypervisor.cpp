@@ -187,14 +187,19 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
 
 /**
  * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
+ * Will create a new image, but refuse to overwrite old ones.
  */
 void QEMU_allocate_drive(std::string id, ssize_t sz)
 {
+    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
+    if (fileExists(drive)) {
+        return;
+    }
+
     int status = 0;
     pid_t child = fork();
     if (child == 0)
     {
-        std::string t = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
 
         // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
         std::vector<char *> left_argv;
@@ -204,7 +209,7 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>("/mnt/faststorage/vms/ubuntu2004backingfile.img"));
-        left_argv.push_back(const_cast<char *>(t.c_str()));
+        left_argv.push_back(const_cast<char *>(drive.c_str()));
         left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
         left_argv.push_back(NULL); // leave a null
 
