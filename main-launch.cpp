@@ -28,16 +28,17 @@ int main(int argc, char *argv[])
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
-    std::string client = "14ddf77c";
+    std::string client = "activation-14ddf77c";
     std::string arn = "";
+    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s}" 
+                      " -client {default=%s} ARN (e.q compute://123456789) ", argv[0], redis.c_str(), username.c_str(), instance.c_str(), client.c_str());
 
-        for (int i = 1; i < argc; ++i)
+    for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -instance {default=" << QEMU_DEFAULT_INSTANCE << "}"
-                      << " -client {default=" << client << "} arn (e.q compute://123456789) " << std::endl;
+            std::cout << usage << std::endl;
             exit(-1);
         }
 
@@ -64,24 +65,29 @@ int main(int argc, char *argv[])
         {
             instance = argv[i + 1];
         }
-
-        if (std::string(argv[i]).find("compute://") != std::string::npos )
+        if (std::string(argv[i]).find("-client") != std::string::npos && (i + 1 < argc))
         {
-            
+            client = argv[i + 1];
+        }
+
+        if (std::string(argv[i]).find("compute://") != std::string::npos)
+        {
             const std::string delimiter = "://";
-            arn = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3 );
+            arn = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
 
-    if (arn.empty()) {
-        std::cerr << "arn not supplied" << std::endl;
+    if (arn.empty())
+    {
+        std::cerr << "Error: ARN not supplied" << std::endl;
+        std::cout << usage << std::endl;        
         exit(-1);
     }
 
-    std::cout << "Will launch compute://" << arn << std::endl;
+    std::cout << "Will launch compute://" << arn << " on " << client << "." << std::endl;
 
     // Hack, to avoid defunct processes.
-    struct timeval timeout = { 1, 500000 }; // 1.5 seconds timeout
+    struct timeval timeout = {1, 500000}; // 1.5 seconds timeout
 
     redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
@@ -102,9 +108,42 @@ int main(int argc, char *argv[])
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
-    redisr1 = (redisReply *)redisCommand(c, "PUBLISH activation-%s %s", client.c_str(), launch.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", client.c_str(), launch.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", client.c_str());
+    while (redisGetReply(c, (void **)&redisr1) == REDIS_OK)
+    {
+        if (redisr1 == NULL)
+            break;
 
-    freeReplyObject(redisr1);
+        if (redisr1->type == REDIS_REPLY_ARRAY)
+        {
+#ifdef __DEBUG__
+            for (int j = 0; j < redisr1->elements; j++)
+            {
+                printf("%u) %s\n", j, redisr1->element[j]->str);
+            }
+#endif
+            std::string str_error;
+            json11::Json jsn = json11::Json::parse(redisr1->element[2]->str, str_error);
+            if (!str_error.empty())
+            {
+                std::cerr << "Could not parse JSON in reply." << std::endl;
+                continue;
+            }
+
+            json11::Json jsn_object = jsn.object_items();
+            std::string uuidv4 = jsn_object["uuidv4"].string_value();
+
+            std::cout << "Reservation: " << uuidv4 << std::endl;
+
+            // consume message
+            freeReplyObject(redisr1);
+            break;
+
+            // consume message
+        }
+    }
+
     redisFree(c);
 
     return EXIT_SUCCESS;

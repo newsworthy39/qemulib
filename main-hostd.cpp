@@ -158,6 +158,32 @@ void onLaunchMessage(json11::Json::object arguments)
         exit(0);
     }
 
+    /**
+     * This block, sends back the UUID to a topic, if somebody cares.
+     */
+    redisContext *c1 = redisConnect(redis.c_str(), 6379);
+    if (c1 == NULL || c1->err)
+    {
+        if (c1)
+        {
+            std::cerr << "Error connecting to REDIS: " << c1->errstr << std::endl;
+            exit(-1);
+        }
+        else
+        {
+            printf("Can't allocate redis context\n");
+        }
+    }
+    
+    redisReply *rconfirmation;
+    std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
+    rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
+    freeReplyObject(rconfirmation);
+    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH reply-activation-%s %s", clientname.c_str(), confirmation.c_str());
+    freeReplyObject(rconfirmation);
+    redisFree(c1);
+
+    
     // Finally, we wait until the pid have returned, and send notifications.
     std::cout << "parent-listener (" << getpid() << ") waiting for child: " << pid << std::endl;
     pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
@@ -229,7 +255,8 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
         {
             std::string err;
             json11::Json jsn = json11::Json::parse(r->element[2]->str, err);
-            if (!err.empty()) {
+            if (!err.empty())
+            {
                 std::cerr << "Could not parse JSON" << std::endl;
             }
 
@@ -315,7 +342,7 @@ int main(int argc, char *argv[])
     redisAsyncCommand(c, NULL, NULL, m3_string_format("AUTH %s", password.c_str()).c_str());
     redisLibeventAttach(c, base);
     redisAsyncCommand(c, onActivationMessage, NULL, m3_string_format("SUBSCRIBE activation-%s", clientname.c_str()).c_str());
-    std::cout << " Subscribed to activation " << std::endl;
+    std::cout << " Subscribed to activation-" << clientname << std::endl;
     event_base_dispatch(base);
 
     return EXIT_SUCCESS;
