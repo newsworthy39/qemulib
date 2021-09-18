@@ -30,12 +30,16 @@ int main(int argc, char *argv[])
     std::string password = "foobared";
     std::string uuidv4 = "";
 
+    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
+                                         "reservation (e.q reservation://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
+                                         argv[0], redis.c_str(), username.c_str());
+
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -uuidv4 " << std::endl;
+            std::cout << usage << std::endl;
             exit(-1);
         }
 
@@ -58,14 +62,19 @@ int main(int argc, char *argv[])
         {
             password = argv[i + 1];
         }
-        if (std::string(argv[i]).find("-uuidv4") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("reservation://") != std::string::npos)
         {
-            uuidv4 = argv[i + 1];
+
+            const std::string delimiter = "://";
+            uuidv4 = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
 
-    if (uuidv4.empty()) {
-        std::cerr << "Missing UUIDv4 in -uuidv4-flag." << std::endl;
+    if (uuidv4.empty())
+    {
+        std::cerr << "Error: Missing reservation." << std::endl;
+        std::cout << usage << std::endl;
+        exit(-1);
     }
 
     // Hack, to avoid defunct processes.
@@ -84,7 +93,6 @@ int main(int argc, char *argv[])
     }
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    
     std::string launch = "{ \"execute\": \"system_powerdown\" }";
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
