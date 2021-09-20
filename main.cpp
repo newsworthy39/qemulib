@@ -2,6 +2,20 @@
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
 
+template <typename... Args>
+std::string m3_string_format(const std::string &format, Args... args)
+{
+    int size_s = std::snprintf(nullptr, 0, format.c_str(), args...) + 1; // Extra space for '\0'
+    if (size_s <= 0)
+    {
+        throw std::runtime_error("Error during formatting.");
+    }
+    auto size = static_cast<size_t>(size_s);
+    auto buf = std::make_unique<char[]>(size);
+    std::snprintf(buf.get(), size, format.c_str(), args...);
+    return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
+}
+
 int main(int argc, char *argv[])
 {
     QemuContext ctx;
@@ -9,16 +23,20 @@ int main(int argc, char *argv[])
     int port = 4444, snapshot = 0;
     std::string command(argv[0]);
     std::string instance = QEMU_DEFAULT_INSTANCE;
-    std::string tapname = QEMU_DEFAULT_INTERFACE;
+    std::string masterinterface = "enp2s0";
     std::string machine = QEMU_DEFAULT_MACHINE;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
+
+    std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -a {default=4444} "
+                                         "-instance {default=%s} -masterinterface {default=%s} -machine {default=%s} -iso {default=none} -drive hdd (n+1)",
+                                         argv[0], instance.c_str(), masterinterface.c_str(), machine.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
         if (std::string(argv[i]).find("-help") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-help) (-verbose) (-headless) (-snapshot) -a {default=4444} -instance {default=" << QEMU_DEFAULT_INSTANCE << "} -interface {default=" << QEMU_DEFAULT_INTERFACE << "}  -machine {default=" << QEMU_DEFAULT_MACHINE << "}  -iso {default=none} -drive hdd (n+1) " << std::endl;
+            std::cout << usage << std::endl;
             exit(-1);
         }
 
@@ -37,9 +55,9 @@ int main(int argc, char *argv[])
             instance = argv[i + 1];
         }
 
-        if (std::string(argv[i]).find("-interface") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-masterinterface") != std::string::npos && (i + 1 < argc))
         {
-            tapname = argv[i + 1];
+            masterinterface = argv[i + 1];
         }
 
         if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
@@ -63,57 +81,35 @@ int main(int argc, char *argv[])
         }
     }
 
-    QEMU_instance(ctx, instance);
-    QEMU_display(ctx, display);
-    QEMU_machine(ctx, machine);
-
-    // lets double-fork. - fuck.
-    pid_t parent = fork();
-    if (parent == 0)
+    int status = 0;
+    pid_t daemon = fork();
+    if (daemon == 0)
     {
 
-        // fork and wait, return - then cleanup files.
-        pid_t pid = fork();
-        int status;
-        if (pid == 0)
+        QEMU_instance(ctx, instance);
+        QEMU_display(ctx, display);
+        QEMU_machine(ctx, machine);
+        QEMU_Notify_Started(ctx);
+
+        std::string tapdevice = QEMU_allocate_tun(ctx, "br0");
+        //std::string tapname = QEMU_allocate_macvtap(ctx, masterinterface);
+
+        pid_t child = fork();
+        if (child == 0)
         {
-
-            if (tapname == QEMU_DEFAULT_INTERFACE)
-            {
-                QEMU_allocate_macvtap(ctx, "enp2s0");
-            }
-            else
-            {
-                QEMU_allocate_tun(ctx, "br0");
-            }
-
-            QEMU_Notify_Started(ctx);
-            QEMU_launch(ctx, true); // where qemu-launch, BLOCKS.
+            QEMU_launch(ctx, true); // where qemu-launch, doesnt block..
         }
         else
         {
-            do
-            {
-                pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
-                if (WIFEXITED(status))
-                {
-                    QEMU_Notify_Exited(ctx);
-                }
-                else if (WIFSIGNALED(status))
-                {
-                    printf("killed by signal %d\n", WTERMSIG(status));
-                }
-                else if (WIFSTOPPED(status))
-                {
-                    printf("stopped by signal %d\n", WSTOPSIG(status));
-                }
-                else if (WIFCONTINUED(status))
-                {
-                    printf("continued\n");
-                }
-            } while (!WIFEXITED(status) && !WIFSIGNALED(status));
-        }
-    } // leave parent, and daemonize.
 
-    return EXIT_SUCCESS;
+            pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
+            if (WIFEXITED(status))
+            {
+                QEMU_Delete_Link(ctx, tapdevice);
+                //QEMU_Delete_Link(ctx, tundevice);
+            }
+
+            return EXIT_SUCCESS;
+        }
+    }
 }
