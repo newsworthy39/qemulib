@@ -92,7 +92,7 @@ int main(int argc, char *argv[])
         QEMU_Notify_Started(ctx);
 
         std::string tapdevice = QEMU_allocate_tun(ctx, "br0");
-        //std::string tapname = QEMU_allocate_macvtap(ctx, masterinterface);
+        std::string tapname = QEMU_allocate_macvtap(ctx, masterinterface);
 
         pid_t child = fork();
         if (child == 0)
@@ -106,7 +106,7 @@ int main(int argc, char *argv[])
             if (WIFEXITED(status))
             {
                 QEMU_Delete_Link(ctx, tapdevice);
-                //QEMU_Delete_Link(ctx, tundevice);
+                QEMU_Delete_Link(ctx, tapname);
             }
 
             return EXIT_SUCCESS;
