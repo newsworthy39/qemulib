@@ -5,11 +5,8 @@
 #include <netlink/netlink.h>
 #include <netlink/route/link.h>
 #include <netlink/route/link/macvtap.h>
-#include <netlink/route/link/bonding.h>
 
-
-//#include <linux/if.h>
-#include <linux/if_tun.h>
+#include <linux/if_tun.h> // for tun-devices.
 #include <linux/netlink.h>
 #include <net/if.h>
 #include <string>

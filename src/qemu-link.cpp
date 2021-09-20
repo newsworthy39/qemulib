@@ -14,40 +14,6 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-int skfd = -1; /* AF_INET socket for ioctl() calls.*/
-int set_if_flags(char *ifname, short flags)
-{
-    struct ifreq ifr;
-    int res = 0;
-
-    ifr.ifr_flags = flags;
-    strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
-
-    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
-    {
-        printf("socket error %s\n", strerror(errno));
-        res = 1;
-        goto out;
-    }
-
-    res = ioctl(skfd, SIOCSIFFLAGS, &ifr);
-    if (res < 0)
-    {
-        printf("Interface '%s': Error: SIOCSIFFLAGS failed: %s\n",
-               ifname, strerror(errno));
-    }
-    else
-    {
-        printf("Interface '%s': flags set to %04X.\n", ifname, flags);
-    }
-out:
-    return res;
-}
-int if_up(char *ifname, short flags)
-{
-    return set_if_flags(ifname, flags | IFF_UP);
-}
-
 std::string QEMU_Generate_Link_Mac()
 {
     static std::random_device rd;
@@ -226,12 +192,48 @@ void if_enslave(const char *masterdev, const char *slavedev)
         exit(-1);
     }
 
-    if ((err = rtnl_link_bond_enslave(sock, master, slave)) < 0)
+    if ((err = rtnl_link_enslave(sock, master, slave)) < 0)
     {
         fprintf(stderr, "Unable to if_enslave %s to %s: %s\n",
                 slavedev, masterdev, nl_geterror(err));
         exit(-1);
     }
+
+    nl_close(sock);
+}
+
+int skfd = -1; /* AF_INET socket for ioctl() calls.*/
+int set_if_flags(char *ifname, short flags)
+{
+    struct ifreq ifr;
+    int res = 0;
+
+    ifr.ifr_flags = flags;
+    strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        printf("socket error %s\n", strerror(errno));
+        res = 1;
+        goto out;
+    }
+
+    res = ioctl(skfd, SIOCSIFFLAGS, &ifr);
+    if (res < 0)
+    {
+        printf("Interface '%s': Error: SIOCSIFFLAGS failed: %s\n",
+               ifname, strerror(errno));
+    }
+    else
+    {
+        printf("Interface '%s': flags set to %04X.\n", ifname, flags);
+    }
+out:
+    return res;
+}
+int set_if_up(char *ifname, short flags)
+{
+    return set_if_flags(ifname, flags | IFF_UP);
 }
 
 std::string QEMU_allocate_tun(QemuContext &ctx, std::string bridge)
@@ -245,8 +247,8 @@ std::string QEMU_allocate_tun(QemuContext &ctx, std::string bridge)
         ;
     }
     close(fd);
-    if_up(dev, 1);
     if_enslave(bridge.c_str(), dev);
+    set_if_up(&dev[0], 1);
     std::cout << "Using network-device: /dev/net/tun" << std::endl;
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,ifname=%s,script=no,downscript=no", dev));
     PushArguments(ctx, "-device", "virtio-net,netdev=guest1");
