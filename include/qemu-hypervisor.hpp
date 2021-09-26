@@ -77,8 +77,14 @@ void QEMU_launch(QemuContext &args, bool block = false);
 void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
 
 /**
- * QEMU_allocate_drive((std::string path, ssize_t sz);
- * creates a new drive, with ubuntu backingfile, using sz (size) gigabytes at the id supplied
+ * QEMU_allocate_backed_drive(std::string id, ssize_t sz,  std::string backingid,)
+ * Will create a new image, but refuse to overwrite old ones, based on a backing id
+ */
+void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile);
+
+/**
+ * QEMU_allocate_drive(std::string id, ssize_t sz)
+ * Will create a new image, but refuse to overwrite old ones.
  */
 void QEMU_allocate_drive(std::string id, ssize_t sz);
 
@@ -121,5 +127,19 @@ void QEMU_ephimeral(QemuContext &ctx);
 // TODO: Label these helpers.
 std::string QEMU_Guest_ID(QemuContext &ctx);
 void QEMU_Generate_ID(QemuContext &ctx);
+
+
+/**
+ * QEMU_Notify_started
+ * Sets the cloud-init arguments source
+ */
+void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src);
+
+/**
+ * QEMU_Cluod_init_arguments
+ * Removes any cloud-init arguments
+ * serial=ds=None
+ */
+void QEMU_cloud_init_remove(QemuContext &ctx);
 
 #endif

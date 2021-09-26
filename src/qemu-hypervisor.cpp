@@ -145,8 +145,7 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", QEMU_LANG);
-    // PushArguments(args, "-smbios","type=1,serial=ds=nocloud-net;s=http://10.0.92.38:9000/");
-    PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
+
     PushArguments(ctx, "-boot", "menu=off,order=cdn,once=c,strict=off"); // Boot with ISO if disk is missing.
     PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
 
@@ -170,11 +169,14 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
+/**
+ * QEMU_drive()
+ */
 int QEMU_drive(QemuContext &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
-        PushArguments(args, "-drive", m2_string_format("file=%s,if=virtio,index=%d,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str(), getNumberOfDrives(args)));
+        PushArguments(args, "-drive", m2_string_format("if=virtio,file=%s,index=%d,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str(), getNumberOfDrives(args)));
         std::cout << "Using drive: " << drive << std::endl;
         return 0;
     }
@@ -186,13 +188,50 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
 }
 
 /**
- * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
+ * QEMU_allocate_drive(std::string id, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
 void QEMU_allocate_drive(std::string id, ssize_t sz)
 {
     std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
-    if (fileExists(drive)) {
+    if (fileExists(drive))
+    {
+        return;
+    }
+
+    int status = 0;
+    pid_t child = fork();
+    if (child == 0)
+    {
+
+        // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
+        std::vector<char *> left_argv;
+        left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_IMG));
+        left_argv.push_back(const_cast<char *>("create"));
+        left_argv.push_back(const_cast<char *>("-f"));
+        left_argv.push_back(const_cast<char *>("qcow2"));
+        left_argv.push_back(const_cast<char *>(drive.c_str()));
+        left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
+        left_argv.push_back(NULL); // leave a null
+
+        execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
+    }
+    else
+    {
+        // Finally, we wait until the pid have returned, and send notifications.
+        pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
+    }
+}
+
+/**
+ * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
+ * Will create a new image, but refuse to overwrite old ones.
+ */
+void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile)
+{
+    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
+    if (fileExists(drive))
+    {
         return;
     }
 
@@ -208,7 +247,7 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
         left_argv.push_back(const_cast<char *>("-f"));
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
-        left_argv.push_back(const_cast<char *>("/mnt/faststorage/vms/ubuntu2004backingfile.img"));
+        left_argv.push_back(const_cast<char *>(backingfile.c_str()));
         left_argv.push_back(const_cast<char *>(drive.c_str()));
         left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
         left_argv.push_back(NULL); // leave a null
@@ -220,12 +259,11 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
         // Finally, we wait until the pid have returned, and send notifications.
         pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
     }
-    
 }
 
 /*
  QEMU_machine
- Sets the correct machine and ISO backend.
+ Sets the correct machine-type.
  */
 void QEMU_machine(QemuContext &args, const std::string model)
 {
@@ -237,6 +275,10 @@ void QEMU_machine(QemuContext &args, const std::string model)
     std::cout << "Using model: " << type << std::endl;
 }
 
+/**
+ * QEMU_iso(QemuContext )
+ * Add an ISO to the hypervisor.
+ */
 void QEMU_iso(QemuContext &args, const std::string &model, const std::string &database)
 {
     const std::string delimiter = "/";
@@ -257,6 +299,10 @@ void QEMU_iso(QemuContext &args, const std::string &model, const std::string &da
     }
 }
 
+/**
+ * QEMU_display
+ * Sets the display, for the monitor
+ */
 void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
 {
     if (display == QEMU_DISPLAY::NONE)
@@ -275,13 +321,18 @@ void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
     //    PushArguments(ctx, "-vga", "virtio"); // set vga card.
 }
 
+/**
+ * QEMU_ephimeral
+ * Makes a instance, into a readonly version
+ */
 void QEMU_ephimeral(QemuContext &ctx)
 {
     PushSingleArgument(ctx, "-snapshot"); // snapshot
 }
 
 /**
- * This needs inside a child-process, who owns everything.
+ * QEMU_launch()
+ * This launches a hypervisor.
  */
 void QEMU_launch(QemuContext &args, bool block)
 {
@@ -305,6 +356,10 @@ void QEMU_launch(QemuContext &args, bool block)
     _exit(errno == ENOENT ? 127 : 126);
 }
 
+/**
+ * QEMU_List_VMImages
+ * List VMImages inside a database, formatted by json
+ */
 std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path)
 {
     std::vector<std::string> files;
@@ -324,10 +379,18 @@ std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, 
     return files;
 }
 
+/**
+ * QEMU_Notify_started
+ * Callback, that can be used when a hypervisor starts
+ */
 void QEMU_Notify_Started(QemuContext &ctx)
 {
 }
 
+/**
+ * QEMU_Notify_started
+ * Callback, that can be used when a hypervisor stops
+ */
 void QEMU_Notify_Exited(QemuContext &ctx)
 {
 
@@ -350,4 +413,24 @@ void QEMU_Notify_Exited(QemuContext &ctx)
     {
         unlink(str_socket.c_str());
     }
+}
+
+/**
+ * QEMU_Cluod_init_arguments
+ * Sets the cloud-init arguments-source
+ * // serial=ds=nocloud-net;s=http://10.10.0.1:8000/
+ */
+void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src)
+{
+    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud-net;s=%s", cloud_settings_src.c_str()));
+}
+
+/**
+ * QEMU_Cluod_init_arguments
+ * Removes any cloud-init arguments
+ * serial=ds=None
+ */
+void QEMU_cloud_init_remove(QemuContext &ctx)
+{
+    PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
 }
