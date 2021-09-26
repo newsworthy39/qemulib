@@ -1,4 +1,3 @@
-
 #include <qemu-launch.hpp>
 
 // NASTY.
@@ -28,10 +27,10 @@ int main(int argc, char *argv[])
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
-    std::string client = "activation-14ddf77c";
+    std::string topic = "activation-14ddf77c";
     std::string arn = "";
-    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s}" 
-                      " -client {default=%s} ARN (e.q compute://123456789) ", argv[0], redis.c_str(), username.c_str(), instance.c_str(), client.c_str());
+    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
+                      "-topic {default=%s} ARN (e.q compute://123456789) ", argv[0], redis.c_str(), username.c_str(), instance.c_str(), topic.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -65,9 +64,9 @@ int main(int argc, char *argv[])
         {
             instance = argv[i + 1];
         }
-        if (std::string(argv[i]).find("-client") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
         {
-            client = argv[i + 1];
+            topic = argv[i + 1];
         }
 
         if (std::string(argv[i]).find("compute://") != std::string::npos)
@@ -84,10 +83,10 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    std::cout << "Will launch compute://" << arn << " on " << client << "." << std::endl;
+    std::cout << "Will launch compute://" << arn << " on " << topic << "." << std::endl;
 
     // Hack, to avoid defunct processes.
-    struct timeval timeout = {1, 500000}; // 1.5 seconds timeout
+    struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
 
     redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
@@ -103,13 +102,15 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Make sure, the activation-topic exists, 
+
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
     std::string launch = m3_string_format("{ \"execute\": \"launch\", \"arguments\": { \"arn\": \"%s\", \"instance\": \"%s\" } }", arn.c_str(), instance.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
-    redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", client.c_str(), launch.c_str());
-    redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", client.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", topic.c_str(), launch.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", topic.c_str());
     while (redisGetReply(c, (void **)&redisr1) == REDIS_OK)
     {
         if (redisr1 == NULL)
