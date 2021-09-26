@@ -14,8 +14,10 @@
 
 #define QEMU_DEFAULT_REDIS "10.0.94.254"
 
-void onLaunchMessage(json11::Json::object json);
-void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata);
+void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata);
 std::string hostd_generate_client_name();
+
+void onReservationsMessage(json11::Json::object arguments);
+void onLaunchMessage(json11::Json::object json);
 
 #endif
