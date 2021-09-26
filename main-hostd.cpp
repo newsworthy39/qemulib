@@ -3,7 +3,22 @@
 std::string redis = QEMU_DEFAULT_REDIS;
 std::string username = "redis";
 std::string password = "foobared";
-std::string clientname = hostd_generate_client_name();
+std::string topic = hostd_generate_client_name();
+std::string bridge = "br0";
+std::string nspace = "/var/run/netns/default";
+std::string cloud_init = "None";
+
+class Reservation {
+    public:
+        std::string uuid;
+        std::string arn;
+        Reservation(std::string uuid, std::string arn): uuid(uuid), arn(arn) {};
+        Reservation(const Reservation& reserve) : uuid(reserve.uuid), arn(reserve.arn) { };
+        virtual ~Reservation() { };
+        json11::Json to_json() const { return json11::Json::array { arn, uuid }; };
+};
+
+std::vector<Reservation> reservations;
 
 // NASTY.
 void *hi_malloc(unsigned long size)
@@ -39,7 +54,48 @@ std::string hostd_generate_client_name()
         ss << dis(e1);
     }
 
-    return ss.str();
+    return std::string(m3_string_format("activation-%s", ss.str().c_str()));
+}
+
+void onReservationsMessage(json11::Json::object arguments)
+{
+    // First, get the ARN, and then we setup the context.
+
+    std::string reply_topic = arguments["reply"].string_value();
+    if (reply_topic.empty())
+    {
+        std::cerr << "reply_topic not supplied" << std::endl;
+        return;
+    }
+
+    /**
+     * This block, sends back the UUIDs to a topic, if somebody cares.
+     */
+    redisContext *c1 = redisConnect(redis.c_str(), 6379);
+    if (c1 == NULL || c1->err)
+    {
+        if (c1)
+        {
+            std::cerr << "(reply) Error connecting to REDIS: " << c1->errstr << std::endl;
+            exit(-1);
+        }
+        else
+        {
+            std::cerr << "Can't allocate redis context." << std::endl;
+        }
+    }
+
+    redisReply *rconfirmation;
+
+    std::string serialized_reservations_1 = json11::Json(reservations).dump();
+
+    std::string json_reply = m3_string_format("{ \"reservations\": %s }", serialized_reservations_1.c_str());
+
+    rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
+    freeReplyObject(rconfirmation);
+    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH %s %s", reply_topic.c_str(), json_reply.c_str());
+    freeReplyObject(rconfirmation);
+    redisFree(c1);
 }
 
 void onLaunchMessage(json11::Json::object arguments)
@@ -59,18 +115,32 @@ void onLaunchMessage(json11::Json::object arguments)
     }
 
     QemuContext ctx;
-    QEMU_allocate_drive(arn, 32);
+    QEMU_allocate_backed_drive(arn, 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
     int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
     if (result == -1)
     {
         return;
     }
 
-    //QEMU_ephimeral(ctx);
+    // QEMU_ephimeral(ctx);
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
-    std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
+
+    if (!cloud_init.compare("None"))
+    {
+        QEMU_cloud_init_arguments(ctx, cloud_init);
+    }
+    else
+    {
+        QEMU_cloud_init_remove(ctx);
+    }
+
+    //std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
+    QEMU_set_namespace(nspace);
+    std::string tapdevice = QEMU_allocate_tun(ctx);
+    QEMU_enslave_interface(bridge, tapdevice);
+    QEMU_set_default_namespace();
     QEMU_Notify_Started(ctx); // Notify Qemu started.
 
     std::cout << "Launching: " << arn << ", pid: " << getpid() << std::endl;
@@ -86,7 +156,7 @@ void onLaunchMessage(json11::Json::object arguments)
         {
             if (c)
             {
-                std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
+                std::cerr << "(connect) Error connecting to REDIS: " << c->errstr << std::endl;
                 exit(-1);
             }
             else
@@ -155,7 +225,7 @@ void onLaunchMessage(json11::Json::object arguments)
     {
         std::cout << "qemu-launcher (" << getpid() << ") hi." << std::endl;
         QEMU_launch(ctx, true); // where qemu-launch, BLOCKS.
-        exit(0);
+        exit(0);                // never reach this point.
     }
 
     /**
@@ -166,7 +236,7 @@ void onLaunchMessage(json11::Json::object arguments)
     {
         if (c1)
         {
-            std::cerr << "Error connecting to REDIS: " << c1->errstr << std::endl;
+            std::cerr << "(reply) Error connecting to REDIS: " << c1->errstr << std::endl;
             exit(-1);
         }
         else
@@ -174,25 +244,35 @@ void onLaunchMessage(json11::Json::object arguments)
             printf("Can't allocate redis context\n");
         }
     }
-    
+
     redisReply *rconfirmation;
     std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
     rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
     freeReplyObject(rconfirmation);
-    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH reply-activation-%s %s", clientname.c_str(), confirmation.c_str());
+    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH reply-%s %s", topic.c_str(), confirmation.c_str());
     freeReplyObject(rconfirmation);
     redisFree(c1);
 
-    
+    /**
+     * We store, the uuid, for the possibility, to query the process
+     */
+
+    Reservation res { QEMU_Guest_ID(ctx), arn};
+    reservations.push_back(res);
+
     // Finally, we wait until the pid have returned, and send notifications.
     std::cout << "parent-listener (" << getpid() << ") waiting for child: " << pid << std::endl;
     pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
     if (WIFEXITED(status))
     {
         QEMU_Notify_Exited(ctx);
-        QEMU_Delete_Link(ctx, tapname);
 
-        // Hack, to avoid defunct processes.
+        // We have to be in the right namespace.
+        QEMU_set_namespace(nspace);
+        QEMU_Delete_Link(ctx, tapdevice);
+        QEMU_set_default_namespace();
+
+        // Hack, to avoid defunct processes, still waiting on redis.
         std::string powerdown = "{ \"execute\": \"system_powerdown\" }";
         std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
         redisContext *c = redisConnect(redis.c_str(), 6379);
@@ -200,7 +280,7 @@ void onLaunchMessage(json11::Json::object arguments)
         {
             if (c)
             {
-                std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
+                std::cerr << "(turnoff) Error connecting to REDIS: " << c->errstr << std::endl;
                 exit(-1);
             }
             else
@@ -216,6 +296,22 @@ void onLaunchMessage(json11::Json::object arguments)
         redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", guestid.c_str(), powerdown.c_str());
         freeReplyObject(redisr1);
         redisFree(c);
+      
+          /**
+         * Finally we clean up the reservation 
+         */
+        
+        for (auto it = reservations.begin(); it != reservations.end();)
+        {
+            if (it->uuid == guestid)
+            {
+                it = reservations.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
 
         std::cout << "parent-listener (" << getpid() << ") will wait for redis-listener: " << guest << std::endl;
 
@@ -238,7 +334,7 @@ void onLaunchMessage(json11::Json::object arguments)
     std::cout << "parent-listener (" << getpid() << ") bye." << std::endl;
 }
 
-void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
+void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
 {
     redisReply *r = (redisReply *)reply;
     if (reply == NULL)
@@ -266,6 +362,7 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             json11::Json::object arguments = jsobj["arguments"].object_items();
             if (arguments.empty())
             {
+                std::cerr << "JSON Arguments object, must not be empty" << std::endl;
                 return;
             }
 
@@ -279,13 +376,19 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
             // But we can also, migrate it
             if (jsclass == "migrate")
             {
-                std::cout << "MIGRATE not-implemented" << std::endl;
+                std::cerr << "MIGRATE not-implemented" << std::endl;
             }
 
             // But we can also, migrate it
             if (jsclass == "register")
             {
-                std::cout << "register not-implemented" << std::endl;
+                std::cerr << "register not-implemented" << std::endl;
+            }
+
+            // But we can also, migrate it
+            if (jsclass == "reservations")
+            {
+                onReservationsMessage(arguments);
             }
         }
     }
@@ -293,16 +396,22 @@ void onActivationMessage(redisAsyncContext *c, void *reply, void *privdata)
 
 int main(int argc, char *argv[])
 {
+
+
     bool verbose = false;
     struct event_base *base = event_base_new();
     signal(SIGPIPE, SIG_IGN);
+    std::string usage = m3_string_format("Usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=%s} -topic {default=%s} "
+                                         "-bridge {default=%s} -cloudinit {default=%s} -namespace {default=%s}",
+                                         argv[0], redis.c_str(),
+                                         username.c_str(), password.c_str(), topic.c_str(), bridge.c_str(), cloud_init.c_str(), nspace.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
-            std::cout << "Usage(): " << argv[0] << " (-h) -redis {default=" << QEMU_DEFAULT_REDIS << "} -user {default=" << username << "} -password {default=" << password << "} -clientname {default=" << clientname << "}" << std::endl;
+            std::cout << usage << std::endl;
             exit(-1);
         }
 
@@ -325,9 +434,31 @@ int main(int argc, char *argv[])
         {
             password = argv[i + 1];
         }
-        if (std::string(argv[i]).find("-clientname") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
         {
-            clientname = argv[i + 1];
+            topic = argv[i + 1];
+        }
+
+        if (std::string(argv[i]).find("-bridge") != std::string::npos && (i + 1 < argc))
+        {
+            bridge = argv[i + 1];
+        }
+        if (std::string(argv[i]).find("-namespace") != std::string::npos && (i + 1 < argc))
+        {
+            nspace = argv[i + 1];
+
+            // Check, that namespace eixsts
+            if (!m1_fileExists(nspace.c_str()))
+            {
+                std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
+                std::cout << usage << std::endl;
+                exit(-1);
+            }
+        }
+
+        if (std::string(argv[i]).find("-cloudinit") != std::string::npos && (i + 1 < argc))
+        {
+            cloud_init = argv[i + 1];
         }
     }
 
@@ -338,11 +469,16 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    std::cout << " Connecting to redis " << redis << std::endl;
     redisAsyncCommand(c, NULL, NULL, m3_string_format("AUTH %s", password.c_str()).c_str());
     redisLibeventAttach(c, base);
-    redisAsyncCommand(c, onActivationMessage, NULL, m3_string_format("SUBSCRIBE activation-%s", clientname.c_str()).c_str());
-    std::cout << " Subscribed to activation-" << clientname << std::endl;
+    redisAsyncCommand(c, onReceiveMessage, NULL, m3_string_format("SUBSCRIBE %s", topic.c_str()).c_str());
+
+    std::cout << " Using redis: " << redis << std::endl;
+    std::cout << " Using topic: " << topic << std::endl;
+    std::cout << " Using cloud_init: " << cloud_init << std::endl;
+    std::cout << " Using namespace: " << nspace << std::endl;
+    std::cout << " Using bridge: " << bridge << std::endl;
+
     event_base_dispatch(base);
 
     return EXIT_SUCCESS;
