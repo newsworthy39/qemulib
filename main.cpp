@@ -23,13 +23,13 @@ int main(int argc, char *argv[])
     int port = 4444, snapshot = 0;
     std::string command(argv[0]);
     std::string instance = QEMU_DEFAULT_INSTANCE;
-    std::string masterinterface = "enp2s0";
+    std::string bridge = "br0";
     std::string machine = QEMU_DEFAULT_MACHINE;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
 
     std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -a {default=4444} "
-                                         "-instance {default=%s} -masterinterface {default=%s} -machine {default=%s} -iso {default=none} -drive hdd (n+1)",
-                                         argv[0], instance.c_str(), masterinterface.c_str(), machine.c_str());
+                                         "-instance {default=%s} -bridge {default=%s} -machine {default=%s} -iso {default=none} -drive hdd (n+1)",
+                                         argv[0], instance.c_str(), bridge.c_str(), machine.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -55,9 +55,9 @@ int main(int argc, char *argv[])
             instance = argv[i + 1];
         }
 
-        if (std::string(argv[i]).find("-masterinterface") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-bridge") != std::string::npos && (i + 1 < argc))
         {
-            masterinterface = argv[i + 1];
+            bridge = argv[i + 1];
         }
 
         if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
@@ -91,13 +91,14 @@ int main(int argc, char *argv[])
         QEMU_machine(ctx, machine);
         QEMU_Notify_Started(ctx);
 
-        std::string tapdevice = QEMU_allocate_tun(ctx, "br0");
-        std::string tapname = QEMU_allocate_macvtap(ctx, masterinterface);
+        
 
         pid_t child = fork();
         if (child == 0)
         {
-            QEMU_launch(ctx, true); // where qemu-launch, doesnt block..
+            std::string tapdevice = QEMU_allocate_tun(ctx);
+            QEMU_enslave_interface(bridge, tapdevice);
+            QEMU_launch(ctx, true); // where qemu-launch, does block, ie we can wait for it.
         }
         else
         {
@@ -105,8 +106,7 @@ int main(int argc, char *argv[])
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
-                QEMU_Delete_Link(ctx, tapdevice);
-                QEMU_Delete_Link(ctx, tapname);
+               // QEMU_Delete_Link(ctx, tapdevice);
             }
 
             return EXIT_SUCCESS;
