@@ -127,8 +127,27 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     return link_name;
 }
 
+static bool has_vnet_hdr(int fd)
+{
+    unsigned int features = 0;
+
+    if (ioctl(fd, TUNGETFEATURES, &features) == -1)
+    {
+        return false;
+    }
+
+    if (!(features & IFF_VNET_HDR))
+    {
+        return false;
+    }
+
+    return true;
+}
+
 int tun_alloc(char *dev)
 {
+    int ctlfd = socket(AF_INET, SOCK_STREAM, 0);
+
     struct ifreq ifr;
     int fd, err;
 
@@ -137,12 +156,20 @@ int tun_alloc(char *dev)
 
     memset(&ifr, 0, sizeof(ifr));
 
+    /* request a tap device, disable PI, and add vnet header support if
+     * requested and it's available. 
     /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
      *        IFF_TAP   - TAP device
      *
      *        IFF_NO_PI - Do not provide packet information
      */
-    ifr.ifr_flags = IFF_TAP;
+
+    ifr.ifr_flags = IFF_TAP | IFF_NO_PI;
+    if (has_vnet_hdr(fd))
+    {
+        ifr.ifr_flags |= IFF_VNET_HDR;
+    }
+
     if (*dev)
         strncpy(ifr.ifr_name, dev, IFNAMSIZ);
 
@@ -151,16 +178,37 @@ int tun_alloc(char *dev)
         close(fd);
         return err;
     }
-    if (ioctl(fd, TUNSETPERSIST, 1))
-    {
-        perror("ioctl(TUNSETPERSIST)");
-        return err;
-    }
+
     strcpy(dev, ifr.ifr_name);
+
+    /* Linux uses the lowest enslaved MAC address as the MAC address of
+     * the bridge.  Set MAC address to a high value so that it doesn't
+     * affect the MAC address of the bridge.
+     */
+    if (ioctl(ctlfd, SIOCGIFHWADDR, &ifr) < 0)
+    {
+        fprintf(stderr, "failed to get MAC address of device `%s': %s\n",
+                dev, strerror(errno));
+        close(ctlfd);
+        exit(-1);
+    }
+    ifr.ifr_hwaddr.sa_data[0] = 0xFE;
+    ifr.ifr_hwaddr.sa_data[1] = 0x52;
+
+    if (ioctl(ctlfd, SIOCSIFHWADDR, &ifr) < 0)
+    {
+        fprintf(stderr, "failed to set MAC address of device `%s': %s\n",
+                dev, strerror(errno));
+        close(ctlfd);
+        exit(-1);
+    }
+
+    close(ctlfd);
+
     return fd;
 }
 
-void if_enslave(const char *masterdev, const char *slavedev)
+void QEMU_enslave_interface(std::string bridge, std::string interface)
 {
     struct nl_sock *sock;
     struct nl_cache *link_cache;
@@ -180,22 +228,22 @@ void if_enslave(const char *masterdev, const char *slavedev)
         exit(-1);
     }
 
-    if (!(master = rtnl_link_get_by_name(link_cache, masterdev)))
+    if (!(master = rtnl_link_get_by_name(link_cache, bridge.c_str())))
     {
-        fprintf(stderr, "Unknown link: %s\n", masterdev);
+        fprintf(stderr, "Unknown bridge-link: %s\n", bridge.c_str());
         exit(-1);
     }
 
-    if (!(slave = rtnl_link_get_by_name(link_cache, slavedev)))
+    if (!(slave = rtnl_link_get_by_name(link_cache, interface.c_str())))
     {
-        fprintf(stderr, "Unknown link: %s\n", slavedev);
+        fprintf(stderr, "Unknown device-link: %s\n", interface.c_str());
         exit(-1);
     }
 
     if ((err = rtnl_link_enslave(sock, master, slave)) < 0)
     {
         fprintf(stderr, "Unable to if_enslave %s to %s: %s\n",
-                slavedev, masterdev, nl_geterror(err));
+                interface.c_str(), bridge.c_str(), nl_geterror(err));
         exit(-1);
     }
 
@@ -231,28 +279,74 @@ int set_if_flags(char *ifname, short flags)
 out:
     return res;
 }
-int set_if_up(char *ifname, short flags)
+int QEMU_link_up(char *ifname, short flags)
 {
     return set_if_flags(ifname, flags | IFF_UP);
 }
 
-std::string QEMU_allocate_tun(QemuContext &ctx, std::string bridge)
+void QEMU_set_namespace(std::string namespace_path)
 {
-    char dev[IFNAMSIZ];
+    int nfd = open(namespace_path.c_str(), O_RDONLY);
+    setns(nfd, CLONE_NEWNET);
+    close(nfd);
+}
+
+void QEMU_set_default_namespace()
+{
+    int ofd = open("/var/run/netns/default", O_RDONLY);
+    setns(ofd, CLONE_NEWNET);
+    close(ofd);
+}
+
+std::string QEMU_allocate_tun(QemuContext &ctx)
+{
+
+    char dev[64] = {};
     int fd = tun_alloc(&dev[0]);
     if (fd == 0)
     {
         std::cerr << "Could not allocate tun" << std::endl;
         exit(-1);
-        ;
     }
-    close(fd);
-    if_enslave(bridge.c_str(), dev);
-    set_if_up(&dev[0], 1);
+
+    QEMU_link_up(&dev[0], 1);
+    std::string mac = QEMU_Generate_Link_Mac();
+
+    // Thanks to, https://www.linuxquestions.org/questions/programming-9/linux-determining-mac-address-from-c-38217/:
+    // int s;
+    // struct ifreq buffer;
+    // s = socket(PF_INET, SOCK_DGRAM, 0);
+    // memset(&buffer, 0x00, sizeof(buffer));
+    // strcpy(buffer.ifr_name, dev);
+    // ioctl(s, SIOCGIFHWADDR, &buffer);
+    // close(s);
+
+    // char mac[20];
+    // sprintf(&mac[0], "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[0],
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[1],
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[2],
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[3],
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[4],
+    //         (unsigned char)buffer.ifr_hwaddr.sa_data[5]);
+
     std::cout << "Using network-device: /dev/net/tun" << std::endl;
-    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,ifname=%s,script=no,downscript=no", dev));
-    PushArguments(ctx, "-device", "virtio-net,netdev=guest1");
+    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,fd=%d,vhost=on", fd));
+    PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=guest1,mac=%s", mac.c_str()));
     return std::string(dev);
+}
+
+std::string QEMU_allocate_tun1(QemuContext &ctx)
+{
+
+    // Thanks to, https://www.linuxquestions.org/questions/programming-9/linux-determining-mac-address-from-c-38217/:
+    std::string tapdevice = QEMU_Generate_Link_Name("tap", 4);
+    std::string mac = QEMU_Generate_Link_Mac();
+
+    std::cout << "Using network-device: /dev/net/tun" << std::endl;
+    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,ifname=%s,vhost=on,downscript=no,script=no", tapdevice.c_str()));
+    PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=guest1,mac=%s", mac.c_str()));
+    return tapdevice;
 }
 
 void QEMU_Delete_Link(QemuContext &ctx, std::string interface)

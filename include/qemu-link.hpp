@@ -19,13 +19,19 @@
 #include <sys/un.h>
 #include <qemu-hypervisor.hpp>
 
-std::string QEMU_allocate_tun(QemuContext &ctx, std::string bridge);
+std::string QEMU_allocate_tun(QemuContext &ctx);
+std::string QEMU_allocate_tun1(QemuContext &ctx);
 std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface);
 std::string QEMU_Generate_Link_Mac();
 std::string QEMU_Generate_Link_Name(std::string prefix, int length);
 void QEMU_Delete_Link(QemuContext &ctx, std::string interface);
 int QEMU_OpenQMPSocket(QemuContext &ctx);
-void if_enslave(const char *masterdev, const char *slavedev);
+void QEMU_enslave_interface(std::string bridge, std::string slave);
+
 int tun_alloc(char *dev);
-int if_up(char *ifname, short flags);
+int QEMU_link_up(char *ifname, short flags);
+
+void QEMU_set_namespace(std::string namespace_path);
+void QEMU_set_default_namespace();
+
 #endif
