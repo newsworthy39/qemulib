@@ -55,4 +55,4 @@ install:
 	cp ${BUILDDIR}/* /home/gandalf/bin
 	
 uninstall:
-	rm -f ${PACKAGES}
+	rm -f /home/gandalf/bin/${PACKAGES}
