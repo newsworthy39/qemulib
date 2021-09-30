@@ -18,7 +18,6 @@
 #include <random>
 #include <filesystem>
 #include <fstream>
-#include <qemu-images.hpp>
 #include <algorithm>
 
 typedef std::vector<std::string> QemuContext;
@@ -89,11 +88,6 @@ void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingf
 void QEMU_allocate_drive(std::string id, ssize_t sz);
 
 /**
- * QEMU_List_Drives(std::filesystem::path filter, std::filesystem::path path);
- */
-std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path);
-
-/**
  * QEMU_Notify_Exited
  */
 void QEMU_Notify_Exited(QemuContext &ctx);
@@ -146,5 +140,7 @@ void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src)
  * serial=ds=None
  */
 void QEMU_cloud_init_remove(QemuContext &ctx);
+
+bool fileExists(const std::string &filename);
 
 #endif
