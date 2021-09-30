@@ -226,8 +226,8 @@ void onLaunchMessage(json11::Json::object arguments)
     QEMU_Notify_Started(ctx); // Notify Qemu started.
 
     // fork and wait, return - then cleanup files.
-    pid_t pid = fork();
-    if (pid == 0)
+    pid_t qemupid = fork();
+    if (qemupid == 0)
     {
         std::cout << "qemu-launcher (" << getpid() << ") hi." << std::endl;
         QEMU_launch(ctx, true); // where qemu-launch, BLOCKS.
@@ -243,7 +243,7 @@ void onLaunchMessage(json11::Json::object arguments)
 
     // Finally, we wait until the pid have returned, and send notifications.
     int status = 0;
-    pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
+    pid_t w = waitpid(qemupid, &status, WUNTRACED | WCONTINUED);
     if (WIFEXITED(status))
     {
         QEMU_Notify_Exited(ctx);
@@ -399,7 +399,7 @@ int main(int argc, char *argv[])
             nspace = argv[i + 1];
 
             // Check, that namespace eixsts
-            if (!m1_fileExists(nspace.c_str()))
+            if (!fileExists(nspace.c_str()))
             {
                 std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
                 std::cout << usage << std::endl;
