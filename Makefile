@@ -4,7 +4,7 @@ LDFLAGS = -lnl-route-3 -lnl-3
 HOSTLDFLAGS = ${LDFLAGS} -lhiredis -levent -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3
 CXX=g++ -std=c++2a ${INC}
-PACKAGES=qemu-kvm qemu-drives qemu-image qemu-hostd qemu-launch qemu-stop qemu-reboot qemu-reservations
+PACKAGES=qemu-kvm qemu-hostd qemu-launch qemu-stop qemu-reboot qemu-reservations
 BUILDDIR=build
 FLAGS=-o3
 
@@ -12,34 +12,28 @@ FLAGS=-o3
 
 all: ${PACKAGES}
 
-qemu-reservations: main-reservations.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-reservations: main-reservations.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-stop: main-stop.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-stop: main-stop.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-reboot: main-reboot.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-reboot: main-reboot.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-launch: main-launch.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-launch: main-launch.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-hostd: main-hostd.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-hostd: main-hostd.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-kvm: main.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-kvm: main.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
-qemu-drives: main-drives.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
-
-qemu-image: main-image.o src/qemu-manage.o src/qemu-manage.o src/qemu-hypervisor.o src/qemu-images.o libraries/json11/json11.o src/qemu-link.o
+qemu-image: main-image.o src/qemu-manage.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 src/qemu-link.cpp:
-	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
-
-src/qemu-images.cpp:
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 src/qemu-hypervisor.cpp:
