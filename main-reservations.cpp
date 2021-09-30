@@ -28,10 +28,10 @@ int main(int argc, char *argv[])
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
-    std::string topic = "activation-14ddf77c";
+    std::string topic = "";
     std::string arn = "";
     std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
-                                         "-topic {default=%s} ",
+                                         "topic (e.q topic://activate-test-br0",
                                          argv[0], redis.c_str(), username.c_str(), topic.c_str());
 
     for (int i = 1; i < argc; ++i)
@@ -62,14 +62,25 @@ int main(int argc, char *argv[])
         {
             password = argv[i + 1];
         }
-        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
+
+        if (std::string(argv[i]).find("topic://") != std::string::npos)
         {
-            topic = argv[i + 1];
+            const std::string delimiter = "://";
+            topic = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
 
+    // Make sure, the user, supplied the topic.
+    if (topic.empty())
+    {
+        std::cout << "Error: Topic is missing" << std::endl;
+        std::cout << usage << std::endl;
+        exit(-1);
+    }
+
     // Hack, to avoid defunct processes.
-    redisContext *c = redisConnect(redis.c_str(), 6379);
+    struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
+    redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
     {
         if (c)
@@ -119,7 +130,7 @@ int main(int argc, char *argv[])
             std::for_each(jsn_array.begin(), jsn_array.end(), [](json11::Json &ele)
                           {
                               json11::Json::array res_array = ele.array_items();
-                              std::cout << "Reservations: " <<  res_array[1].string_value() << " ARN (" << res_array[0].string_value() << ")" << std::endl;
+                              std::cout << "Reservations: " << res_array[1].string_value() << " ARN (" << res_array[0].string_value() << ")" << std::endl;
                           });
 
             // consume message
