@@ -28,9 +28,9 @@ int main(int argc, char *argv[])
     std::string username = "redis";
     std::string password = "foobared";
     std::string topic = "activation-14ddf77c";
-    std::string arn = "";
+    std::string arn = "test-server-instance";
     std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
-                      "-topic {default=%s} ARN (e.q compute://123456789) ", argv[0], redis.c_str(), username.c_str(), instance.c_str(), topic.c_str());
+                      "%s://%s", argv[0], redis.c_str(), username.c_str(), instance.c_str(), topic.c_str(), arn.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -64,14 +64,11 @@ int main(int argc, char *argv[])
         {
             instance = argv[i + 1];
         }
-        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
-        {
-            topic = argv[i + 1];
-        }
 
-        if (std::string(argv[i]).find("compute://") != std::string::npos)
+        if (std::string(argv[i]).find("://") != std::string::npos)
         {
             const std::string delimiter = "://";
+            topic = std::string(argv[i]).substr(0, std::string(argv[i]).find(delimiter));
             arn = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
@@ -83,7 +80,14 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
-    std::cout << "Will launch compute://" << arn << " on " << topic << "." << std::endl;
+      if (topic.empty())
+    {
+        std::cerr << "Error: TOPIC not supplied" << std::endl;
+        std::cout << usage << std::endl;        
+        exit(-1);
+    }
+
+    std::cout << "Will launch " << arn << " on " << topic << "." << std::endl;
 
     // Hack, to avoid defunct processes.
     struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
