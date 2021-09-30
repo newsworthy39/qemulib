@@ -91,13 +91,19 @@ int main(int argc, char *argv[])
         QEMU_machine(ctx, machine);
         QEMU_Notify_Started(ctx);
 
-        
+        int bridge_result = QEMU_allocate_bridge(bridge);
+        if (bridge_result != 0)
+        {
+            std::cerr << "Bridge allocation error: " << bridge_result << std::endl;
+            exit(-1);
+        }
+        QEMU_link_up(bridge, 1);;
+        std::string tapdevice = QEMU_allocate_tun(ctx);
+        QEMU_enslave_interface(bridge, tapdevice);
 
         pid_t child = fork();
         if (child == 0)
         {
-            std::string tapdevice = QEMU_allocate_tun(ctx);
-            QEMU_enslave_interface(bridge, tapdevice);
             QEMU_launch(ctx, true); // where qemu-launch, does block, ie we can wait for it.
         }
         else
@@ -106,7 +112,7 @@ int main(int argc, char *argv[])
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
-               // QEMU_Delete_Link(ctx, tapdevice);
+                QEMU_Delete_Link(ctx, tapdevice);
             }
 
             return EXIT_SUCCESS;

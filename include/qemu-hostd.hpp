@@ -10,6 +10,7 @@
 #include <hiredis/adapters/libevent.h>
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
+#include <qemu-manage.hpp>
 #include <thread>
 
 #define QEMU_DEFAULT_REDIS "10.0.94.254"

@@ -123,6 +123,11 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port);
  */
 void QEMU_ephimeral(QemuContext &ctx);
 
+/**
+ * QEMU_powerdown(QemuContext &ctx);
+ */
+void QEMU_powerdown(QemuContext &ctx);
+
 
 // TODO: Label these helpers.
 std::string QEMU_Guest_ID(QemuContext &ctx);

@@ -8,17 +8,7 @@ std::string bridge = "br0";
 std::string nspace = "/var/run/netns/default";
 std::string cloud_init = "None";
 
-class Reservation {
-    public:
-        std::string uuid;
-        std::string arn;
-        Reservation(std::string uuid, std::string arn): uuid(uuid), arn(arn) {};
-        Reservation(const Reservation& reserve) : uuid(reserve.uuid), arn(reserve.arn) { };
-        virtual ~Reservation() { };
-        json11::Json to_json() const { return json11::Json::array { arn, uuid }; };
-};
-
-std::vector<Reservation> reservations;
+std::vector<QemuContext> reservations;
 
 // NASTY.
 void *hi_malloc(unsigned long size)
@@ -57,6 +47,73 @@ std::string hostd_generate_client_name()
     return std::string(m3_string_format("activation-%s", ss.str().c_str()));
 }
 
+static void broadcastMessage(std::string reply, std::string &message)
+{
+    // Redis-stuff.
+    /**
+     * This block, sends back the UUID to a topic, if somebody cares.
+     */
+    redisContext *c1 = redisConnect(redis.c_str(), 6379);
+    if (c1 == NULL || c1->err)
+    {
+        if (c1)
+        {
+            std::cerr << "(reply) Error connecting to REDIS: " << c1->errstr << std::endl;
+            return;
+        }
+        else
+        {
+            printf("Can't allocate redis context\n");
+            return;
+        }
+    }
+    redisReply *rconfirmation;
+
+    rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
+    freeReplyObject(rconfirmation);
+    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH %s %s", reply.c_str(), message.c_str());
+    freeReplyObject(rconfirmation);
+    redisFree(c1);
+}
+
+void onPowerdownMessage(json11::Json::object arguments)
+{
+    // First, get the ARN, and then we setup the context.
+    std::string arn = arguments["arn"].string_value();
+    if (arn.empty())
+    {
+        std::cerr << "arn not supplied" << std::endl;
+        return;
+    }
+
+        std::string reply = arguments["reply"].string_value();
+    if (reply.empty())
+    {
+        std::cerr << "Reply not supplied" << std::endl;
+        return;
+    }
+
+    for (auto it = reservations.begin(); it != reservations.end();)
+    {
+        QemuContext ctx = (*it);
+
+        if (QEMU_Guest_ID(ctx) == arn)
+        {
+            QEMU_powerdown(ctx);
+
+            std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
+
+            broadcastMessage(reply, confirmation);
+
+            break;
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
 void onReservationsMessage(json11::Json::object arguments)
 {
     // First, get the ARN, and then we setup the context.
@@ -85,12 +142,29 @@ void onReservationsMessage(json11::Json::object arguments)
         }
     }
 
+    struct reservations_json
+    {
+        std::string uuid;
+        std::string arn;
+        reservations_json(std::string uuid, std::string arn) : uuid(uuid), arn(arn){};
+        reservations_json(const reservations_json &reserve) : uuid(reserve.uuid), arn(reserve.arn){};
+        virtual ~reservations_json(){};
+        json11::Json to_json() const { return json11::Json::array{arn, uuid}; };
+    };
+
+    std::vector<reservations_json> res;
+    for (auto it = reservations.begin(); it != reservations.end();)
+    {
+        QemuContext ctx = (*it);
+        reservations_json js{"server00", QEMU_Guest_ID(ctx)};
+        res.push_back(js);
+        ++it;
+    }
+
     redisReply *rconfirmation;
-
-    std::string serialized_reservations_1 = json11::Json(reservations).dump();
-
+    std::string serialized_reservations_1 = json11::Json(res).dump();
     std::string json_reply = m3_string_format("{ \"reservations\": %s }", serialized_reservations_1.c_str());
-
+    std::cout << "Sending " << json_reply << std::endl;
     rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
     freeReplyObject(rconfirmation);
     rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH %s %s", reply_topic.c_str(), json_reply.c_str());
@@ -138,89 +212,21 @@ void onLaunchMessage(json11::Json::object arguments)
 
     //std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
     QEMU_set_namespace(nspace);
+    int bridge_result = QEMU_allocate_bridge(bridge);
+    if (bridge_result != 0)
+    {
+        std::cerr << "Bridge allocation error: " << bridge_result << std::endl;
+        return;
+    }
+
+    QEMU_link_up(bridge, 1);
     std::string tapdevice = QEMU_allocate_tun(ctx);
     QEMU_enslave_interface(bridge, tapdevice);
     QEMU_set_default_namespace();
     QEMU_Notify_Started(ctx); // Notify Qemu started.
 
-    std::cout << "Launching: " << arn << ", pid: " << getpid() << std::endl;
-
-    int status_guest;
-    pid_t guest = fork();
-    if (guest == 0)
-    {
-        // Setup redis.
-        std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
-        redisContext *c = redisConnect(redis.c_str(), 6379);
-        if (c == NULL || c->err)
-        {
-            if (c)
-            {
-                std::cerr << "(connect) Error connecting to REDIS: " << c->errstr << std::endl;
-                exit(-1);
-            }
-            else
-            {
-                printf("Can't allocate redis context\n");
-            }
-        }
-
-        // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-        redisReply *redisr;
-        redisr = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
-        freeReplyObject(redisr);
-        redisr = (redisReply *)redisCommand(c, "SUBSCRIBE qmp-%s ", guestid.c_str());
-        freeReplyObject(redisr);
-
-        std::cout << "redis-listener (" << getpid() << ") hi." << std::endl;
-
-        // Start the back-and-forth loop
-        while (redisGetReply(c, (void **)&redisr) == REDIS_OK)
-        {
-            if (redisr->type == REDIS_REPLY_ARRAY)
-            {
-
-                std::string str_error;
-                json11::Json jsn = json11::Json::parse(redisr->element[2]->str, str_error);
-                if (!str_error.empty())
-                {
-                    continue;
-                }
-
-                json11::Json jsn_object = jsn.object_items();
-                std::string command = jsn_object["execute"].string_value();
-
-                // TODO: intercept and parse json, in reply-str, find "exit" and stuff,
-                std::cout << "Forward to QMP-socket " << redisr->element[2]->str << std::endl;
-                char str[4096];
-                int s = QEMU_OpenQMPSocket(ctx);
-                int t = send(s, redisr->element[2]->str, strlen(redisr->element[2]->str) + 1, 0);
-                sleep(1); // This is a variable point, that needs to be looked at. e-poll?
-                t = recv(s, str, 4096, 0);
-
-                if (command.compare("system_powerdown") == 0)
-                {
-                    freeReplyObject(redisr);
-                    close(s);
-                    break;
-                }
-
-                // consume message
-                freeReplyObject(redisr);
-                close(s);
-            }
-        }
-
-        std::cout << "redis-listener (" << getpid() << ") bye." << std::endl;
-        redisFree(c);
-        exit(0);
-    }
-
-    std::cout << "parent-listener (" << getpid() << ") continuing parent." << std::endl;
-
     // fork and wait, return - then cleanup files.
     pid_t pid = fork();
-    int status;
     if (pid == 0)
     {
         std::cout << "qemu-launcher (" << getpid() << ") hi." << std::endl;
@@ -229,39 +235,14 @@ void onLaunchMessage(json11::Json::object arguments)
     }
 
     /**
-     * This block, sends back the UUID to a topic, if somebody cares.
+     * We store, the uuid, for the possibility, to query the process (threaded)
      */
-    redisContext *c1 = redisConnect(redis.c_str(), 6379);
-    if (c1 == NULL || c1->err)
-    {
-        if (c1)
-        {
-            std::cerr << "(reply) Error connecting to REDIS: " << c1->errstr << std::endl;
-            exit(-1);
-        }
-        else
-        {
-            printf("Can't allocate redis context\n");
-        }
-    }
-
-    redisReply *rconfirmation;
+    reservations.push_back(ctx);
     std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
-    rconfirmation = (redisReply *)redisCommand(c1, "AUTH %s", password.c_str());
-    freeReplyObject(rconfirmation);
-    rconfirmation = (redisReply *)redisCommand(c1, "PUBLISH reply-%s %s", topic.c_str(), confirmation.c_str());
-    freeReplyObject(rconfirmation);
-    redisFree(c1);
-
-    /**
-     * We store, the uuid, for the possibility, to query the process
-     */
-
-    Reservation res { QEMU_Guest_ID(ctx), arn};
-    reservations.push_back(res);
+    broadcastMessage("reply-" + topic, confirmation);
 
     // Finally, we wait until the pid have returned, and send notifications.
-    std::cout << "parent-listener (" << getpid() << ") waiting for child: " << pid << std::endl;
+    int status = 0;
     pid_t w = waitpid(pid, &status, WUNTRACED | WCONTINUED);
     if (WIFEXITED(status))
     {
@@ -272,38 +253,15 @@ void onLaunchMessage(json11::Json::object arguments)
         QEMU_Delete_Link(ctx, tapdevice);
         QEMU_set_default_namespace();
 
-        // Hack, to avoid defunct processes, still waiting on redis.
-        std::string powerdown = "{ \"execute\": \"system_powerdown\" }";
-        std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
-        redisContext *c = redisConnect(redis.c_str(), 6379);
-        if (c == NULL || c->err)
-        {
-            if (c)
-            {
-                std::cerr << "(turnoff) Error connecting to REDIS: " << c->errstr << std::endl;
-                exit(-1);
-            }
-            else
-            {
-                printf("Can't allocate redis context\n");
-            }
-        }
-
-        // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-        redisReply *redisr1;
-        redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
-        freeReplyObject(redisr1);
-        redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", guestid.c_str(), powerdown.c_str());
-        freeReplyObject(redisr1);
-        redisFree(c);
-      
-          /**
+        /**
          * Finally we clean up the reservation 
          */
-        
+
         for (auto it = reservations.begin(); it != reservations.end();)
         {
-            if (it->uuid == guestid)
+            QemuContext ct = (*it);
+
+            if (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx))
             {
                 it = reservations.erase(it);
             }
@@ -312,11 +270,6 @@ void onLaunchMessage(json11::Json::object arguments)
                 ++it;
             }
         }
-
-        std::cout << "parent-listener (" << getpid() << ") will wait for redis-listener: " << guest << std::endl;
-
-        // We need the redis-kid, too:
-        pid_t x = waitpid(guest, &status_guest, WUNTRACED | WCONTINUED);
     }
     else if (WIFSIGNALED(status))
     {
@@ -380,15 +333,14 @@ void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
             }
 
             // But we can also, migrate it
-            if (jsclass == "register")
-            {
-                std::cerr << "register not-implemented" << std::endl;
-            }
-
-            // But we can also, migrate it
             if (jsclass == "reservations")
             {
                 onReservationsMessage(arguments);
+            }
+
+            if (jsclass == "powerdown")
+            {
+                onPowerdownMessage(arguments);
             }
         }
     }
@@ -396,7 +348,6 @@ void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
 
 int main(int argc, char *argv[])
 {
-
 
     bool verbose = false;
     struct event_base *base = event_base_new();
@@ -461,7 +412,6 @@ int main(int argc, char *argv[])
             cloud_init = argv[i + 1];
         }
     }
-
     redisAsyncContext *c = redisAsyncConnect(redis.c_str(), 6379);
     if (c->err)
     {

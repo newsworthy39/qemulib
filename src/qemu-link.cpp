@@ -54,6 +54,44 @@ std::string QEMU_Generate_Link_Name(std::string prefix, int length = 8)
     return m3_string_format("%s-%s", prefix.c_str(), ss.str().c_str());
 }
 
+int QEMU_allocate_bridge(std::string bridge)
+{
+    struct rtnl_link *link;
+    struct nl_cache *link_cache;
+    struct nl_sock *sk;
+    struct rtnl_link *ltap;
+    int err;
+    sk = nl_socket_alloc();
+    if ((err = nl_connect(sk, NETLINK_ROUTE)) < 0)
+    {
+        nl_perror(err, "Unable to connect socket");
+        return err;
+    }
+
+    if ((err = rtnl_link_alloc_cache(sk, AF_UNSPEC, &link_cache)) < 0)
+    {
+        nl_perror(err, "Unable to allocate cache");
+        return err;
+    }
+
+    link = rtnl_link_alloc();
+    if ((err = rtnl_link_set_type(link, "bridge")) < 0)
+    {
+        rtnl_link_put(link);
+        return err;
+    }
+    rtnl_link_set_name(link, bridge.c_str());
+
+    if ((err = rtnl_link_add(sk, link, NLM_F_CREATE)) < 0)
+    {
+        nl_perror(err, "Unable to allocate cache");
+        return err;
+    }
+    rtnl_link_put(link);
+
+    return 0;
+}
+
 std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
 {
     struct rtnl_link *link;
@@ -144,7 +182,7 @@ static bool has_vnet_hdr(int fd)
     return true;
 }
 
-int tun_alloc(char *dev)
+int QEMU_tun_allocate(const std::string device)
 {
     int ctlfd = socket(AF_INET, SOCK_STREAM, 0);
 
@@ -170,8 +208,7 @@ int tun_alloc(char *dev)
         ifr.ifr_flags |= IFF_VNET_HDR;
     }
 
-    if (*dev)
-        strncpy(ifr.ifr_name, dev, IFNAMSIZ);
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
 
     if ((err = ioctl(fd, TUNSETIFF, (void *)&ifr)) < 0)
     {
@@ -179,26 +216,23 @@ int tun_alloc(char *dev)
         return err;
     }
 
-    strcpy(dev, ifr.ifr_name);
-
     /* Linux uses the lowest enslaved MAC address as the MAC address of
      * the bridge.  Set MAC address to a high value so that it doesn't
      * affect the MAC address of the bridge.
      */
     if (ioctl(ctlfd, SIOCGIFHWADDR, &ifr) < 0)
     {
-        fprintf(stderr, "failed to get MAC address of device `%s': %s\n",
-                dev, strerror(errno));
+        std::cerr << "failed to get MAC address of device " << device.c_str() << strerror(errno);
         close(ctlfd);
         exit(-1);
     }
+
     ifr.ifr_hwaddr.sa_data[0] = 0xFE;
     ifr.ifr_hwaddr.sa_data[1] = 0x52;
 
     if (ioctl(ctlfd, SIOCSIFHWADDR, &ifr) < 0)
     {
-        fprintf(stderr, "failed to set MAC address of device `%s': %s\n",
-                dev, strerror(errno));
+        std::cerr << "failed to set MAC address of device " << device.c_str() << strerror(errno);
         close(ctlfd);
         exit(-1);
     }
@@ -251,7 +285,7 @@ void QEMU_enslave_interface(std::string bridge, std::string interface)
 }
 
 int skfd = -1; /* AF_INET socket for ioctl() calls.*/
-int set_if_flags(char *ifname, short flags)
+int set_if_flags(const char *ifname, short flags)
 {
     struct ifreq ifr;
     int res = 0;
@@ -279,9 +313,10 @@ int set_if_flags(char *ifname, short flags)
 out:
     return res;
 }
-int QEMU_link_up(char *ifname, short flags)
+
+int QEMU_link_up(const std::string ifname, short flags)
 {
-    return set_if_flags(ifname, flags | IFF_UP);
+    return set_if_flags(ifname.c_str(), flags | IFF_UP);
 }
 
 void QEMU_set_namespace(std::string namespace_path)
@@ -301,50 +336,21 @@ void QEMU_set_default_namespace()
 std::string QEMU_allocate_tun(QemuContext &ctx)
 {
 
-    char dev[64] = {};
-    int fd = tun_alloc(&dev[0]);
+    std::string tapdevice = QEMU_Generate_Link_Name("tap", 4);
+    int fd = QEMU_tun_allocate(tapdevice.c_str());
     if (fd == 0)
     {
         std::cerr << "Could not allocate tun" << std::endl;
         exit(-1);
     }
 
-    QEMU_link_up(&dev[0], 1);
+    QEMU_link_up(tapdevice.c_str(), 1);
+
+    // Inside mac, is best served, by NOT being, the outside mac.
     std::string mac = QEMU_Generate_Link_Mac();
 
-    // Thanks to, https://www.linuxquestions.org/questions/programming-9/linux-determining-mac-address-from-c-38217/:
-    // int s;
-    // struct ifreq buffer;
-    // s = socket(PF_INET, SOCK_DGRAM, 0);
-    // memset(&buffer, 0x00, sizeof(buffer));
-    // strcpy(buffer.ifr_name, dev);
-    // ioctl(s, SIOCGIFHWADDR, &buffer);
-    // close(s);
-
-    // char mac[20];
-    // sprintf(&mac[0], "%.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[0],
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[1],
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[2],
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[3],
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[4],
-    //         (unsigned char)buffer.ifr_hwaddr.sa_data[5]);
-
-    std::cout << "Using network-device: /dev/net/tun" << std::endl;
+    std::cout << "Using network-device: /dev/net/tun (mac: " << mac << ")" << std::endl;
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,fd=%d,vhost=on", fd));
-    PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=guest1,mac=%s", mac.c_str()));
-    return std::string(dev);
-}
-
-std::string QEMU_allocate_tun1(QemuContext &ctx)
-{
-
-    // Thanks to, https://www.linuxquestions.org/questions/programming-9/linux-determining-mac-address-from-c-38217/:
-    std::string tapdevice = QEMU_Generate_Link_Name("tap", 4);
-    std::string mac = QEMU_Generate_Link_Mac();
-
-    std::cout << "Using network-device: /dev/net/tun" << std::endl;
-    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,ifname=%s,vhost=on,downscript=no,script=no", tapdevice.c_str()));
     PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=guest1,mac=%s", mac.c_str()));
     return tapdevice;
 }
