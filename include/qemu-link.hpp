@@ -21,7 +21,7 @@
 
 std::string QEMU_allocate_tun(QemuContext &ctx);
 std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface);
-std::string QEMU_Generate_Link_Mac();
+std::string generateRandomMACAddress();
 std::string QEMU_Generate_Link_Name(std::string prefix, int length);
 
 void QEMU_Delete_Link(QemuContext &ctx, std::string interface);
@@ -32,5 +32,6 @@ int QEMU_tun_allocate(const std::string device);
 int QEMU_link_up(const std::string ifname, short flags);
 void QEMU_set_namespace(std::string namespace_path);
 void QEMU_set_default_namespace();
+
 
 #endif

@@ -14,7 +14,7 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
-std::string QEMU_Generate_Link_Mac()
+std::string generateRandomMACAddress()
 {
     static std::random_device rd;
     static std::mt19937 gen(rd());
@@ -37,7 +37,7 @@ std::string QEMU_Generate_Link_Mac()
     return ss.str();
 }
 
-std::string QEMU_Generate_Link_Name(std::string prefix, int length = 8)
+std::string generateRandomPrefixedString(std::string prefix, int length = 8)
 {
     static std::random_device r;
     static std::default_random_engine e1(r());
@@ -99,8 +99,9 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     struct nl_sock *sk;
     struct nl_addr *addr;
     int err, master_index;
-    std::string mac = QEMU_Generate_Link_Mac();
-    std::string link_name = QEMU_Generate_Link_Name("macvtap", 8);
+    std::string guestId = generateRandomPrefixedString("guest", 4);
+    std::string mac = generateRandomMACAddress();
+    std::string link_name = generateRandomPrefixedString("macvtap", 8);
 
     sk = nl_socket_alloc();
     if ((err = nl_connect(sk, NETLINK_ROUTE)) < 0)
@@ -159,8 +160,8 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     }
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
-    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest0,fd=%d,vhost=on", fd));
-    PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=guest0,id=internet-dev", mac.c_str()));
+    PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
+    PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", guestId.c_str(), mac.c_str()));
 
     return link_name;
 }
@@ -326,17 +327,22 @@ void QEMU_set_namespace(std::string namespace_path)
     close(nfd);
 }
 
+/*
+ * QEMU_set_Default_namespace()
+ * Changes back to the root namespace.
+ * DISCLAIMER: This only works, when PID namespaces is not in use!
+ */
 void QEMU_set_default_namespace()
 {
-    int ofd = open("/var/run/netns/default", O_RDONLY);
+    int ofd = open("/proc/1/ns/net", O_RDONLY);
     setns(ofd, CLONE_NEWNET);
     close(ofd);
 }
 
 std::string QEMU_allocate_tun(QemuContext &ctx)
 {
-
-    std::string tapdevice = QEMU_Generate_Link_Name("tap", 4);
+    std::string guestId = generateRandomPrefixedString("guest", 4);
+    std::string tapdevice = generateRandomPrefixedString("tap", 4);
     int fd = QEMU_tun_allocate(tapdevice.c_str());
     if (fd == 0)
     {
@@ -347,11 +353,12 @@ std::string QEMU_allocate_tun(QemuContext &ctx)
     QEMU_link_up(tapdevice.c_str(), 1);
 
     // Inside mac, is best served, by NOT being, the outside mac.
-    std::string mac = QEMU_Generate_Link_Mac();
+    std::string mac = generateRandomMACAddress();
 
     std::cout << "Using network-device: /dev/net/tun (mac: " << mac << ")" << std::endl;
-    PushArguments(ctx, "-netdev", m3_string_format("tap,id=guest1,fd=%d,vhost=on", fd));
-    PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=guest1,mac=%s", mac.c_str()));
+    PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
+    PushArguments(ctx, "-device", m3_string_format("virtio-net-pci,netdev=%s,mac=%s", guestId.c_str(), mac.c_str()));
+
     return tapdevice;
 }
 
