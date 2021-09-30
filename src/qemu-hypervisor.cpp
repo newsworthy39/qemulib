@@ -278,25 +278,11 @@ void QEMU_machine(QemuContext &args, const std::string model)
 /**
  * QEMU_iso(QemuContext )
  * Add an ISO to the hypervisor.
+ * std::string isopath
  */
-void QEMU_iso(QemuContext &args, const std::string &model, const std::string &database)
+void QEMU_iso(QemuContext &args, const std::string &iso)
 {
-    const std::string delimiter = "/";
-    const std::string type = model.substr(0, model.find(delimiter));
-    std::map<std::string, std::string> images = qemuListImages(database);
-
-    for (auto it = images.begin(); it != images.end(); it++)
-    {
-        std::string first = it->first;
-        std::string isopath = it->second;
-
-        if (first.starts_with(model) && fileExists(isopath))
-        {
-            PushArguments(args, "-drive", m2_string_format("file=%s,index=%d,media=cdrom", isopath.c_str(), getNumberOfDrives(args)));
-            std::cout << "Using iso: " << isopath << std::endl;
-            break;
-        }
-    }
+    PushArguments(args, "-drive", m2_string_format("file=%s,index=%d,media=cdrom", iso.c_str(), getNumberOfDrives(args)));
 }
 
 /**
@@ -354,29 +340,6 @@ void QEMU_launch(QemuContext &args, bool block)
 
     std::cerr << "Error on exec of " << left_argv[0] << ": " << strerror(errno) << std::endl;
     _exit(errno == ENOENT ? 127 : 126);
-}
-
-/**
- * QEMU_List_VMImages
- * List VMImages inside a database, formatted by json
- */
-std::vector<std::string> QEMU_List_VMImages(const std::filesystem::path filter, const std::filesystem::path path)
-{
-    std::vector<std::string> files;
-    using std::filesystem::directory_iterator;
-    std::string reg = std::string(path) + std::string(filter);
-
-    for (const auto &file : directory_iterator(path))
-    {
-        std::string f = file.path();
-
-        if (f.find(reg) == 0)
-        {
-            files.push_back(f);
-        }
-    }
-
-    return files;
 }
 
 /**
