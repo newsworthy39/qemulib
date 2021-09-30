@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
     redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", topic.c_str(), launch.c_str());
+    freeReplyObject(redisr1);
     redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", topic.c_str());
     while (redisGetReply(c, (void **)&redisr1) == REDIS_OK)
     {
