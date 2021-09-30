@@ -78,7 +78,9 @@ int main(int argc, char *argv[])
     }
 
     // Hack, to avoid defunct processes.
-    redisContext *c = redisConnect(redis.c_str(), 6379);
+    struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
+
+    redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
     {
         if (c)

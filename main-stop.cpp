@@ -28,11 +28,12 @@ int main(int argc, char *argv[])
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
+    std::string topic = "";
     std::string uuidv4 = "";
 
     std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
-                                         "reservation (e.q reservation://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
-                                         argv[0], redis.c_str(), username.c_str());
+                                         "-topic (mandatory)  reservation (e.q reservation://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
+                                         argv[0], redis.c_str(), username.c_str(), topic.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -62,6 +63,12 @@ int main(int argc, char *argv[])
         {
             password = argv[i + 1];
         }
+
+        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
+        {
+            topic = argv[i + 1];
+        }
+
         if (std::string(argv[i]).find("reservation://") != std::string::npos)
         {
 
@@ -77,8 +84,17 @@ int main(int argc, char *argv[])
         exit(-1);
     }
 
+    if (topic.empty())
+    {
+        std::cerr << "Error: Missing topic." << std::endl;
+        std::cout << usage << std::endl;
+        exit(-1);
+    }
+
     // Hack, to avoid defunct processes.
-    redisContext *c = redisConnect(redis.c_str(), 6379);
+    struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
+
+    redisContext *c = redisConnectWithTimeout(redis.c_str(), 6379, timeout);
     if (c == NULL || c->err)
     {
         if (c)
@@ -93,12 +109,47 @@ int main(int argc, char *argv[])
     }
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string launch = "{ \"execute\": \"system_powerdown\" }";
+    std::string stop = m3_string_format("{ \"execute\": \"powerdown\", \"arguments\": { \"arn\": \"%s\", \"reply\": \"reply-%s\" } }", uuidv4.c_str(), uuidv4.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
-    redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", uuidv4.c_str(), launch.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", topic.c_str(), stop.c_str());
     freeReplyObject(redisr1);
+    redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", topic.c_str());
+    while (redisGetReply(c, (void **)&redisr1) == REDIS_OK)
+    {
+        if (redisr1 == NULL)
+            break;
+
+        if (redisr1->type == REDIS_REPLY_ARRAY)
+        {
+#ifdef __DEBUG__
+            for (int j = 0; j < redisr1->elements; j++)
+            {
+                printf("%u) %s\n", j, redisr1->element[j]->str);
+            }
+#endif
+            std::string str_error;
+            json11::Json jsn = json11::Json::parse(redisr1->element[2]->str, str_error);
+            if (!str_error.empty())
+            {
+                std::cerr << "Could not parse JSON in reply." << std::endl;
+                continue;
+            }
+
+            json11::Json jsn_object = jsn.object_items();
+            std::string uuidv4 = jsn_object["uuidv4"].string_value();
+
+            std::cout << "Confirmed: " << uuidv4 << std::endl;
+
+            // consume message
+            freeReplyObject(redisr1);
+            break;
+
+            // consume message
+        }
+    }
+
     redisFree(c);
 
     return EXIT_SUCCESS;
