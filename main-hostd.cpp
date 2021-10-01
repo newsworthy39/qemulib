@@ -76,17 +76,17 @@ static void broadcastMessage(std::string reply, std::string &message)
     redisFree(c1);
 }
 
-void onPowerdownMessage(json11::Json::object arguments)
+void onResetMessage(json11::Json::object arguments)
 {
     // First, get the ARN, and then we setup the context.
-    std::string arn = arguments["arn"].string_value();
-    if (arn.empty())
+    std::string reservation = arguments["reservation"].string_value();
+    if (reservation.empty())
     {
         std::cerr << "arn not supplied" << std::endl;
         return;
     }
 
-        std::string reply = arguments["reply"].string_value();
+    std::string reply = arguments["reply"].string_value();
     if (reply.empty())
     {
         std::cerr << "Reply not supplied" << std::endl;
@@ -97,7 +97,45 @@ void onPowerdownMessage(json11::Json::object arguments)
     {
         QemuContext ctx = (*it);
 
-        if (QEMU_Guest_ID(ctx) == arn)
+        if (QEMU_Guest_ID(ctx) == reservation)
+        {
+            QEMU_reset(ctx);
+
+            std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
+
+            broadcastMessage(reply, confirmation);
+
+            break;
+        }
+        else
+        {
+            ++it;
+        }
+    }
+}
+
+void onPowerdownMessage(json11::Json::object arguments)
+{
+    // First, get the ARN, and then we setup the context.
+    std::string reservation = arguments["reservation"].string_value();
+    if (reservation.empty())
+    {
+        std::cerr << "reservation not supplied" << std::endl;
+        return;
+    }
+
+    std::string reply = arguments["reply"].string_value();
+    if (reply.empty())
+    {
+        std::cerr << "Reply not supplied" << std::endl;
+        return;
+    }
+
+    for (auto it = reservations.begin(); it != reservations.end();)
+    {
+        QemuContext ctx = (*it);
+
+        if (QEMU_Guest_ID(ctx) == reservation)
         {
             QEMU_powerdown(ctx);
 
@@ -341,6 +379,11 @@ void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
             if (jsclass == "powerdown")
             {
                 onPowerdownMessage(arguments);
+            }
+
+            if (jsclass == "reset")
+            {
+                onResetMessage(arguments);
             }
         }
     }
