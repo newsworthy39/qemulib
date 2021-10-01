@@ -118,15 +118,16 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port);
 void QEMU_ephimeral(QemuContext &ctx);
 
 /**
- * QEMU_powerdown(QemuContext &ctx);
+ * QEMU_Guest_Id
+ * Get (or create) a guest-id (uuidv4).
  */
-void QEMU_powerdown(QemuContext &ctx);
-
-
-// TODO: Label these helpers.
 std::string QEMU_Guest_ID(QemuContext &ctx);
-void QEMU_Generate_ID(QemuContext &ctx);
 
+/**
+ * QEMU_Generate_ID
+ * Generate a uuidv4.
+ */
+void QEMU_Generate_ID(QemuContext &ctx);
 
 /**
  * QEMU_Notify_started
@@ -143,6 +144,10 @@ void QEMU_cloud_init_remove(QemuContext &ctx);
 
 bool fileExists(const std::string &filename);
 
+/**
+ * QEMU_get_pid
+ * get pid of running hypervisor.
+ */
 pid_t QEMU_get_pid(QemuContext &ctx);
 
 #endif
