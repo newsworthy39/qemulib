@@ -145,7 +145,6 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", QEMU_LANG);
-
     PushArguments(ctx, "-boot", "menu=off,order=cdn,once=c,strict=off"); // Boot with ISO if disk is missing.
     PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
 
