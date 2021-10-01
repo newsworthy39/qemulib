@@ -6,5 +6,6 @@
 #include <qemu-link.hpp>
 
 void QEMU_powerdown(QemuContext &ctx);
+void QEMU_reset(QemuContext &ctx);
 
 #endif

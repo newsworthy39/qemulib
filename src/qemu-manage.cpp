@@ -7,8 +7,6 @@
 void QEMU_powerdown(QemuContext &ctx)
 {
     char buffer[4096] { 0 };
-    // Setup redis.
-    std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
 
     int s = QEMU_OpenQMPSocket(ctx);
 
@@ -22,4 +20,23 @@ void QEMU_powerdown(QemuContext &ctx)
     }
 
     close(s);
+}
+
+void QEMU_reset(QemuContext &ctx) {
+
+      char buffer[4096] { 0 };
+
+    int s = QEMU_OpenQMPSocket(ctx);
+
+    std::string reset = "{ \"execute\": \"system_reset\" }";
+
+    int t = send(s, reset.c_str(), reset.size() + 1, 0);
+    sleep(1);
+    int k = recv(s, buffer, 4096, 0);
+    if ( k != -1) {
+        std::cout << "Received " << buffer << std::endl;
+    }
+
+    close(s);
+
 }
