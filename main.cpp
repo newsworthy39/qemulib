@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
     std::string bridge = "br0";
     std::string machine = QEMU_DEFAULT_MACHINE;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
+    int mandatory = 1;
 
     std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -a {default=4444} "
                                          "-instance {default=%s} -bridge {default=%s} -machine {default=%s} -iso {default=none} -drive hdd (n+1)",
@@ -68,6 +69,7 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
             QEMU_drive(ctx, argv[i + 1]);
+            mandatory = 0;
         }
 
         if (std::string(argv[i]).find("-a") != std::string::npos && (i + 1 < argc))
@@ -81,11 +83,16 @@ int main(int argc, char *argv[])
         }
     }
 
+    if (mandatory == 1) {
+        std::cerr << "Error: At least one -drive, must be supplied." << std::endl;
+        std::cout << usage << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
     int status = 0;
     pid_t daemon = fork();
     if (daemon == 0)
     {
-
         QEMU_instance(ctx, instance);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
