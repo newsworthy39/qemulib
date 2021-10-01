@@ -6,7 +6,7 @@
  */
 void QEMU_powerdown(QemuContext &ctx)
 {
-    char buffer[4096] { 0 };
+    char buffer[4096]{0};
 
     int s = QEMU_OpenQMPSocket(ctx);
 
@@ -15,16 +15,24 @@ void QEMU_powerdown(QemuContext &ctx)
     int t = send(s, powerdown.c_str(), powerdown.size() + 1, 0);
     sleep(1);
     int k = recv(s, buffer, 4096, 0);
-    if ( k != -1) {
+    if (k != -1)
+    {
         std::cout << "Received " << buffer << std::endl;
     }
 
     close(s);
 }
 
-void QEMU_reset(QemuContext &ctx) {
+void QEMU_kill(QemuContext &ctx)
+{
+    pid_t pid = QEMU_get_pid(ctx);
+    kill(pid, SIGTERM);
+}
 
-      char buffer[4096] { 0 };
+void QEMU_reset(QemuContext &ctx)
+{
+
+    char buffer[4096]{0};
 
     int s = QEMU_OpenQMPSocket(ctx);
 
@@ -33,10 +41,10 @@ void QEMU_reset(QemuContext &ctx) {
     int t = send(s, reset.c_str(), reset.size() + 1, 0);
     sleep(1);
     int k = recv(s, buffer, 4096, 0);
-    if ( k != -1) {
+    if (k != -1)
+    {
         std::cout << "Received " << buffer << std::endl;
     }
 
     close(s);
-
 }
