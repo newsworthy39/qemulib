@@ -107,19 +107,19 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     if ((err = nl_connect(sk, NETLINK_ROUTE)) < 0)
     {
         nl_perror(err, "Unable to connect socket");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if ((err = rtnl_link_alloc_cache(sk, AF_UNSPEC, &link_cache)) < 0)
     {
         nl_perror(err, "Unable to allocate cache");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (!(master_index = rtnl_link_name2i(link_cache, masterinterface.c_str())))
     {
         fprintf(stderr, "Unable to lookup enp2s0");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     link = rtnl_link_macvtap_alloc();
@@ -156,7 +156,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     if (fd == -1)
     {
         std::cerr << "Error opening network-device " << tappath << ": " << strerror(errno) << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
@@ -225,7 +225,7 @@ int QEMU_tun_allocate(const std::string device)
     {
         std::cerr << "failed to get MAC address of device " << device.c_str() << strerror(errno);
         close(ctlfd);
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     ifr.ifr_hwaddr.sa_data[0] = 0xFE;
@@ -235,7 +235,7 @@ int QEMU_tun_allocate(const std::string device)
     {
         std::cerr << "failed to set MAC address of device " << device.c_str() << strerror(errno);
         close(ctlfd);
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     close(ctlfd);
@@ -254,32 +254,32 @@ void QEMU_enslave_interface(std::string bridge, std::string interface)
     if ((err = nl_connect(sock, NETLINK_ROUTE)) < 0)
     {
         nl_perror(err, "Unable to connect socket");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if ((err = rtnl_link_alloc_cache(sock, AF_UNSPEC, &link_cache)) < 0)
     {
         nl_perror(err, "Unable to allocate cache");
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (!(master = rtnl_link_get_by_name(link_cache, bridge.c_str())))
     {
         fprintf(stderr, "Unknown bridge-link: %s\n", bridge.c_str());
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (!(slave = rtnl_link_get_by_name(link_cache, interface.c_str())))
     {
         fprintf(stderr, "Unknown device-link: %s\n", interface.c_str());
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if ((err = rtnl_link_enslave(sock, master, slave)) < 0)
     {
         fprintf(stderr, "Unable to if_enslave %s to %s: %s\n",
                 interface.c_str(), bridge.c_str(), nl_geterror(err));
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     nl_close(sock);
@@ -347,7 +347,7 @@ std::string QEMU_allocate_tun(QemuContext &ctx)
     if (fd == 0)
     {
         std::cerr << "Could not allocate tun" << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     QEMU_link_up(tapdevice.c_str(), 1);
@@ -408,7 +408,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
     if (connect(s, (struct sockaddr *)&remote, len) == -1)
     {
         std::cerr << "Could not connect to QMP-socket: " << str_qmp << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
     t = send(s, "{ \"execute\": \"qmp_capabilities\"} ", strlen("{ \"execute\": \"qmp_capabilities\"} "), 0);
     t = recv(s, str, 4096, 0);

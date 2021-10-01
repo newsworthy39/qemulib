@@ -41,7 +41,7 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
             std::cout << usage << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         if (std::string(argv[i]).find("-v") != std::string::npos)
@@ -81,14 +81,14 @@ int main(int argc, char *argv[])
     {
         std::cerr << "Error: ARN not supplied" << std::endl;
         std::cout << usage << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     if (topic.empty())
     {
         std::cerr << "Error: TOPIC not supplied" << std::endl;
         std::cout << usage << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     // Hack, to avoid defunct processes.
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
         if (c)
         {
             std::cerr << "Error connecting to REDIS: " << c->errstr << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         else
         {

@@ -134,7 +134,7 @@ void onReservationsMessage(json11::Json::object arguments)
         if (c1)
         {
             std::cerr << "(reply) Error connecting to REDIS: " << c1->errstr << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         else
         {
@@ -363,7 +363,7 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-h") != std::string::npos)
         {
             std::cout << usage << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         if (std::string(argv[i]).find("-v") != std::string::npos)
@@ -403,7 +403,7 @@ int main(int argc, char *argv[])
             {
                 std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
                 std::cout << usage << std::endl;
-                exit(-1);
+                exit(EXIT_FAILURE);
             }
         }
 
@@ -416,7 +416,7 @@ int main(int argc, char *argv[])
     if (c->err)
     {
         std::cerr << "Error " << c->errstr << std::endl;
-        exit(-1);
+        exit(EXIT_FAILURE);
     }
 
     redisAsyncCommand(c, NULL, NULL, m3_string_format("AUTH %s", password.c_str()).c_str());

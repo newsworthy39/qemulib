@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
 
         if (std::string(argv[i]).find("-v") != std::string::npos)
@@ -102,7 +102,7 @@ int main(int argc, char *argv[])
         if (bridge_result != 0)
         {
             std::cerr << "Bridge allocation error: " << bridge_result << std::endl;
-            exit(-1);
+            exit(EXIT_FAILURE);
         }
         QEMU_link_up(bridge, 1);;
         std::string tapdevice = QEMU_allocate_tun(ctx);
