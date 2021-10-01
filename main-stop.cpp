@@ -30,8 +30,9 @@ int main(int argc, char *argv[])
     std::string password = "foobared";
     std::string topic = "";
     std::string reservation = "";
+    int force = 0;
 
-    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} "
+    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} (-force) "
                                          "topic://reservation (e.q activate-test-br0://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
                                          argv[0], redis.c_str(), username.c_str());
 
@@ -64,9 +65,9 @@ int main(int argc, char *argv[])
             password = argv[i + 1];
         }
 
-        if (std::string(argv[i]).find("-topic") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-force") != std::string::npos)
         {
-            topic = argv[i + 1];
+            force = 1;
         }
 
         if (std::string(argv[i]).find("://") != std::string::npos)
@@ -108,7 +109,7 @@ int main(int argc, char *argv[])
     }
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string stop = m3_string_format("{ \"execute\": \"powerdown\", \"arguments\": { \"reservation\": \"%s\", \"reply\": \"reply-%s\" } }", reservation.c_str(), topic.c_str());
+    std::string stop = m3_string_format("{ \"execute\": \"powerdown\", \"arguments\": { \"reservation\": \"%s\", \"reply\": \"reply-%s\", \"force\": %d } }", reservation.c_str(), topic.c_str(), force);
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);

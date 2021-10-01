@@ -396,3 +396,20 @@ void QEMU_cloud_init_remove(QemuContext &ctx)
 {
     PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
 }
+
+/**
+ * QEMU_Notify_started
+ * Callback, that can be used when a hypervisor stops
+ */
+pid_t QEMU_get_pid(QemuContext &ctx)
+{
+    std::string guestid = QEMU_Guest_ID(ctx);
+    std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
+    pid_t pid;
+    std::ifstream pidfile;
+    pidfile.open(str_pid.c_str());
+    pidfile >> pid;
+    pidfile.close();
+    return pid;
+
+}

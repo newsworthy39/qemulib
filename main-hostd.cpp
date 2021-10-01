@@ -82,35 +82,27 @@ void onResetMessage(json11::Json::object arguments)
     std::string reservation = arguments["reservation"].string_value();
     if (reservation.empty())
     {
-        std::cerr << "arn not supplied" << std::endl;
+        std::cerr << "reservation not supplied" << std::endl;
         return;
     }
 
     std::string reply = arguments["reply"].string_value();
     if (reply.empty())
     {
-        std::cerr << "Reply not supplied" << std::endl;
+        std::cerr << "reply-argument not supplied" << std::endl;
         return;
     }
 
-    for (auto it = reservations.begin(); it != reservations.end();)
+    auto it = std::find_if(reservations.begin(), reservations.end(), [&reservation](QemuContext &ctx)
+                           { return (QEMU_Guest_ID(ctx) == reservation); });
+
+    if (it != reservations.end())
     {
-        QemuContext ctx = (*it);
+        QEMU_powerdown(*it);
 
-        if (QEMU_Guest_ID(ctx) == reservation)
-        {
-            QEMU_reset(ctx);
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*it).c_str());
 
-            std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
-
-            broadcastMessage(reply, confirmation);
-
-            break;
-        }
-        else
-        {
-            ++it;
-        }
+        broadcastMessage(reply, confirmation);
     }
 }
 
@@ -124,6 +116,9 @@ void onPowerdownMessage(json11::Json::object arguments)
         return;
     }
 
+    // First, get the ARN, and then we setup the context.
+    int force = arguments["force"].int_value();
+
     std::string reply = arguments["reply"].string_value();
     if (reply.empty())
     {
@@ -131,24 +126,24 @@ void onPowerdownMessage(json11::Json::object arguments)
         return;
     }
 
-    for (auto it = reservations.begin(); it != reservations.end();)
+    auto ctx = std::find_if(reservations.begin(), reservations.end(), [&reservation](QemuContext &ctx)
+                            { return (QEMU_Guest_ID(ctx) == reservation); });
+
+    if (ctx != reservations.end())
     {
-        QemuContext ctx = (*it);
-
-        if (QEMU_Guest_ID(ctx) == reservation)
+        if (force == 0)
         {
-            QEMU_powerdown(ctx);
-
-            std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
-
-            broadcastMessage(reply, confirmation);
-
-            break;
+            QEMU_powerdown(*ctx);
         }
         else
         {
-            ++it;
+            pid_t pid = QEMU_get_pid(*ctx);
+            kill(pid, SIGTERM);
         }
+
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*ctx).c_str());
+
+        broadcastMessage(reply, confirmation);
     }
 }
 
@@ -295,18 +290,12 @@ void onLaunchMessage(json11::Json::object arguments)
          * Finally we clean up the reservation 
          */
 
-        for (auto it = reservations.begin(); it != reservations.end();)
-        {
-            QemuContext ct = (*it);
+        auto it = std::find_if(reservations.begin(), reservations.end(), [&ctx](QemuContext &ct)
+                               { return (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx)); });
 
-            if (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx))
-            {
-                it = reservations.erase(it);
-            }
-            else
-            {
-                ++it;
-            }
+        if (it != reservations.end())
+        {
+            reservations.erase(it);
         }
     }
     else if (WIFSIGNALED(status))

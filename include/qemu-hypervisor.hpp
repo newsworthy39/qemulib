@@ -143,4 +143,6 @@ void QEMU_cloud_init_remove(QemuContext &ctx);
 
 bool fileExists(const std::string &filename);
 
+pid_t QEMU_get_pid(QemuContext &ctx);
+
 #endif
