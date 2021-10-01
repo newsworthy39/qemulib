@@ -27,10 +27,10 @@ int main(int argc, char *argv[])
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
-    std::string topic = "activation-14ddf77c";
-    std::string arn = "test-server-instance";
+    std::string topic = "";
+    std::string arn = "";
     std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
-                      "%s://%s", argv[0], redis.c_str(), username.c_str(), instance.c_str(), topic.c_str(), arn.c_str());
+                      "activation-test-br0://test-server-instance", argv[0], redis.c_str(), username.c_str(), instance.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
