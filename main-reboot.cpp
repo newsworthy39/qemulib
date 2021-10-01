@@ -1,4 +1,3 @@
-
 #include <qemu-reboot.hpp>
 
 // NASTY.
@@ -24,14 +23,14 @@ std::string m3_string_format(const std::string &format, Args... args)
 int main(int argc, char *argv[])
 {
     bool verbose = false;
-    std::string uuidv4;
+    std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string redis = QEMU_DEFAULT_REDIS;
     std::string username = "redis";
     std::string password = "foobared";
-    std::string topic = "activation-14ddf77c";
-    std::string arn = "";
+    std::string topic = "";
+    std::string reservation = "";
     std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
-                                         "reservation (e.q reservation://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
+                                         "topic://reservation (e.q activate-test-br0://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
                                          argv[0], redis.c_str(), username.c_str());
 
     for (int i = 1; i < argc; ++i)
@@ -62,20 +61,34 @@ int main(int argc, char *argv[])
         {
             password = argv[i + 1];
         }
+        if (std::string(argv[i]).find("-instance") != std::string::npos && (i + 1 < argc))
+        {
+            instance = argv[i + 1];
+        }
 
-        if (std::string(argv[i]).find("reservation://") != std::string::npos)
+        if (std::string(argv[i]).find("://") != std::string::npos)
         {
             const std::string delimiter = "://";
-            uuidv4 = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            topic = std::string(argv[i]).substr(0, std::string(argv[i]).find(delimiter));
+            reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
 
-    if (uuidv4.empty())
+    if (reservation.empty())
     {
-        std::cerr << "Error: Missing reservation." << std::endl;
+        std::cerr << "Error: reservation not supplied" << std::endl;
         std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }
+
+    if (topic.empty())
+    {
+        std::cerr << "Error: TOPIC not supplied" << std::endl;
+        std::cout << usage << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    std::cout << "Will reboot " << reservation << " on " << topic << "." << std::endl;
 
     // Hack, to avoid defunct processes.
     struct timeval timeout = {1, 5000}; // 1.5 seconds timeout
@@ -94,13 +107,50 @@ int main(int argc, char *argv[])
         }
     }
 
+    // Make sure, the activation-topic exists,
+
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string launch = "{ \"execute\": \"system_reset\" }";
+    std::string launch = m3_string_format("{ \"execute\": \"reset\", \"arguments\": { \"reservation\": \"%s\", \"instance\": \"%s\" } }", reservation.c_str(), instance.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);
-    redisr1 = (redisReply *)redisCommand(c, "PUBLISH qmp-%s %s", uuidv4.c_str(), launch.c_str());
+    redisr1 = (redisReply *)redisCommand(c, "PUBLISH %s %s", topic.c_str(), launch.c_str());
     freeReplyObject(redisr1);
+    redisr1 = (redisReply *)redisCommand(c, "SUBSCRIBE reply-%s", topic.c_str());
+    while (redisGetReply(c, (void **)&redisr1) == REDIS_OK)
+    {
+        if (redisr1 == NULL)
+            break;
+
+        if (redisr1->type == REDIS_REPLY_ARRAY)
+        {
+#ifdef __DEBUG__
+            for (int j = 0; j < redisr1->elements; j++)
+            {
+                printf("%u) %s\n", j, redisr1->element[j]->str);
+            }
+#endif
+            std::string str_error;
+            json11::Json jsn = json11::Json::parse(redisr1->element[2]->str, str_error);
+            if (!str_error.empty())
+            {
+                std::cerr << "Could not parse JSON in reply." << std::endl;
+                continue;
+            }
+
+            json11::Json jsn_object = jsn.object_items();
+            std::string uuidv4 = jsn_object["uuidv4"].string_value();
+
+            std::cout << "Confirmed: " << uuidv4 << std::endl;
+
+            // consume message
+            freeReplyObject(redisr1);
+            break;
+
+            // consume message
+        }
+    }
+
     redisFree(c);
 
     return EXIT_SUCCESS;
