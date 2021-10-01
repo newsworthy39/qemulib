@@ -29,16 +29,16 @@ int main(int argc, char *argv[])
     std::string username = "redis";
     std::string password = "foobared";
     std::string topic = "";
-    std::string arn = "";
+    std::string reservation = "";
 
-    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
+    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} "
                                          "topic://reservation (e.q activate-test-br0://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
                                          argv[0], redis.c_str(), username.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
-        if (std::string(argv[i]).find("-h") != std::string::npos)
+        if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
@@ -73,11 +73,11 @@ int main(int argc, char *argv[])
         {
             const std::string delimiter = "://";
             topic = std::string(argv[i]).substr(0, std::string(argv[i]).find(delimiter));
-            arn = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
 
-    if (arn.empty())
+    if (reservation.empty())
     {
         std::cerr << "Error: ARN not supplied" << std::endl;
         std::cout << usage << std::endl;
@@ -108,7 +108,7 @@ int main(int argc, char *argv[])
     }
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string stop = m3_string_format("{ \"execute\": \"powerdown\", \"arguments\": { \"arn\": \"%s\", \"reply\": \"reply-%s\" } }", arn.c_str(), topic.c_str());
+    std::string stop = m3_string_format("{ \"execute\": \"powerdown\", \"arguments\": { \"reservation\": \"%s\", \"reply\": \"reply-%s\" } }", reservation.c_str(), topic.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);

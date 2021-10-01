@@ -29,14 +29,14 @@ int main(int argc, char *argv[])
     std::string password = "foobared";
     std::string topic = "";
     std::string reservation = "";
-    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} "
+    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} "
                                          "topic://reservation (e.q activate-test-br0://29fa6a16-4630-488b-a839-d0277e3de0e1) ",
                                          argv[0], redis.c_str(), username.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
-        if (std::string(argv[i]).find("-h") != std::string::npos)
+        if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
     // Make sure, the activation-topic exists,
 
     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string launch = m3_string_format("{ \"execute\": \"reset\", \"arguments\": { \"reservation\": \"%s\", \"instance\": \"%s\" } }", reservation.c_str(), instance.c_str());
+    std::string launch = m3_string_format("{ \"execute\": \"reset\", \"arguments\": { \"reservation\": \"%s\", \"reply\": \"reply-%s\" } }", reservation.c_str(), topic.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);

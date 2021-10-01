@@ -29,13 +29,13 @@ int main(int argc, char *argv[])
     std::string password = "foobared";
     std::string topic = "";
     std::string arn = "";
-    std::string usage = m3_string_format("usage(): %s (-h) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
+    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
                       "activation-test-br0://test-server-instance", argv[0], redis.c_str(), username.c_str(), instance.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
 
-        if (std::string(argv[i]).find("-h") != std::string::npos)
+        if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
