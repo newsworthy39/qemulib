@@ -135,12 +135,10 @@ void onPowerdownMessage(json11::Json::object arguments)
         {
             QEMU_powerdown(*ctx);
         }
-        else
-        {
-            pid_t pid = QEMU_get_pid(*ctx);
-            kill(pid, SIGTERM);
+        else {
+            QEMU_kill(*ctx);
         }
-
+     
         std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*ctx).c_str());
 
         broadcastMessage(reply, confirmation);
