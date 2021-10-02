@@ -29,7 +29,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx);
 int QEMU_allocate_bridge(std::string bridge);
 void QEMU_enslave_interface(std::string bridge, std::string slave);
 int QEMU_tun_allocate(const std::string device);
-int QEMU_link_up(const std::string ifname, short flags);
+int QEMU_link_up(const std::string ifname);
 void QEMU_set_namespace(std::string namespace_path);
 void QEMU_set_default_namespace();
 

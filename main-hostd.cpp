@@ -1,4 +1,8 @@
-#include <qemu-hostd.hpp>
+#include <iostream>
+#include <string>
+#include <signal.h>
+#include <thread>
+#include <main-hostd.hpp>
 
 std::string redis = QEMU_DEFAULT_REDIS;
 std::string username = "redis";
@@ -47,7 +51,7 @@ std::string hostd_generate_client_name()
     return std::string(m3_string_format("activation-%s", ss.str().c_str()));
 }
 
-static void broadcastMessage(std::string reply, std::string &message)
+void broadcastMessage(std::string reply, std::string &message)
 {
     // Redis-stuff.
     /**
@@ -131,14 +135,8 @@ void onPowerdownMessage(json11::Json::object arguments)
 
     if (ctx != reservations.end())
     {
-        if (force == 0)
-        {
-            QEMU_powerdown(*ctx);
-        }
-        else {
-            QEMU_kill(*ctx);
-        }
-     
+        force == 0 ? QEMU_powerdown(*ctx) : QEMU_kill(*ctx);
+
         std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*ctx).c_str());
 
         broadcastMessage(reply, confirmation);
@@ -208,6 +206,7 @@ void onLaunchMessage(json11::Json::object arguments)
     // First, get the ARN, and then we setup the context.
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string arn = arguments["arn"].string_value();
+    bool snpshot = arguments["snapshot"].bool_value();
     if (arn.empty())
     {
         std::cerr << "ARN not supplied" << std::endl;
@@ -219,6 +218,7 @@ void onLaunchMessage(json11::Json::object arguments)
         instance = arguments["instance"].string_value();
     }
 
+    // TODO: We probably, need some sort of library handling here.
     QemuContext ctx;
     QEMU_allocate_backed_drive(arn, 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
     int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
@@ -226,11 +226,18 @@ void onLaunchMessage(json11::Json::object arguments)
     {
         return;
     }
-
-    // QEMU_ephimeral(ctx);
+    
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
+
+    /**
+     * If -snapshot, was provided, then
+     * we make a snapshot 
+     */
+    if (snpshot) {
+         QEMU_ephimeral(ctx); 
+    }
 
     if (!cloud_init.compare("None"))
     {
@@ -250,7 +257,7 @@ void onLaunchMessage(json11::Json::object arguments)
         return;
     }
 
-    QEMU_link_up(bridge, 1);
+    QEMU_link_up(bridge);
     std::string tapdevice = QEMU_allocate_tun(ctx);
     QEMU_enslave_interface(bridge, tapdevice);
     QEMU_set_default_namespace();
@@ -264,52 +271,55 @@ void onLaunchMessage(json11::Json::object arguments)
         QEMU_launch(ctx, true); // where qemu-launch, BLOCKS.
         exit(0);                // never reach this point.
     }
-
-    /**
-     * We store, the uuid, for the possibility, to query the process (threaded)
-     */
-    reservations.push_back(ctx);
-    std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
-    broadcastMessage("reply-" + topic, confirmation);
-
-    // Finally, we wait until the pid have returned, and send notifications.
-    int status = 0;
-    pid_t w = waitpid(qemupid, &status, WUNTRACED | WCONTINUED);
-    if (WIFEXITED(status))
+    if (qemupid > 0)
     {
-        QEMU_Notify_Exited(ctx);
-
-        // We have to be in the right namespace.
-        QEMU_set_namespace(nspace);
-        QEMU_Delete_Link(ctx, tapdevice);
-        QEMU_set_default_namespace();
 
         /**
+     * We store, the uuid, for the possibility, to query the process (threaded)
+     */
+        reservations.push_back(ctx);
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
+        broadcastMessage("reply-" + topic, confirmation);
+
+        // Finally, we wait until the pid have returned, and send notifications.
+        int status = 0;
+        pid_t w = waitpid(qemupid, &status, WUNTRACED | WCONTINUED);
+        if (WIFEXITED(status))
+        {
+            QEMU_Notify_Exited(ctx);
+
+            // We have to be in the right namespace.
+            QEMU_set_namespace(nspace);
+            QEMU_Delete_Link(ctx, tapdevice);
+            QEMU_set_default_namespace();
+
+            /**
          * Finally we clean up the reservation 
          */
 
-        auto it = std::find_if(reservations.begin(), reservations.end(), [&ctx](QemuContext &ct)
-                               { return (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx)); });
+            auto it = std::find_if(reservations.begin(), reservations.end(), [&ctx](QemuContext &ct)
+                                   { return (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx)); });
 
-        if (it != reservations.end())
-        {
-            reservations.erase(it);
+            if (it != reservations.end())
+            {
+                reservations.erase(it);
+            }
         }
-    }
-    else if (WIFSIGNALED(status))
-    {
-        printf("killed by signal %d\n", WTERMSIG(status));
-    }
-    else if (WIFSTOPPED(status))
-    {
-        printf("stopped by signal %d\n", WSTOPSIG(status));
-    }
-    else if (WIFCONTINUED(status))
-    {
-        printf("continued\n");
-    }
+        else if (WIFSIGNALED(status))
+        {
+            printf("killed by signal %d\n", WTERMSIG(status));
+        }
+        else if (WIFSTOPPED(status))
+        {
+            printf("stopped by signal %d\n", WSTOPSIG(status));
+        }
+        else if (WIFCONTINUED(status))
+        {
+            printf("continued\n");
+        }
 
-    std::cout << "parent-listener (" << getpid() << ") bye." << std::endl;
+        std::cout << "parent-listener (" << getpid() << ") bye." << std::endl;
+    }
 }
 
 void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
@@ -365,12 +375,14 @@ void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata)
 
             if (jsclass == "powerdown")
             {
-                onPowerdownMessage(arguments);
+                std::thread t(&onPowerdownMessage, arguments);
+                t.detach();
             }
 
             if (jsclass == "reset")
             {
-                onResetMessage(arguments);
+                std::thread t(&onResetMessage, arguments);
+                t.detach();
             }
         }
     }

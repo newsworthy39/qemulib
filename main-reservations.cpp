@@ -1,4 +1,7 @@
-
+#include <iostream>
+#include <string>
+#include <signal.h>
+#include <thread>
 #include <qemu-reservations.hpp>
 
 // NASTY.

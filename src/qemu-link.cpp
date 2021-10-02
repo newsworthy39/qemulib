@@ -315,9 +315,9 @@ out:
     return res;
 }
 
-int QEMU_link_up(const std::string ifname, short flags)
+int QEMU_link_up(const std::string ifname)
 {
-    return set_if_flags(ifname.c_str(), flags | IFF_UP);
+    return set_if_flags(ifname.c_str(), 1 | IFF_UP);
 }
 
 void QEMU_set_namespace(std::string namespace_path)
@@ -350,7 +350,7 @@ std::string QEMU_allocate_tun(QemuContext &ctx)
         exit(EXIT_FAILURE);
     }
 
-    QEMU_link_up(tapdevice.c_str(), 1);
+    QEMU_link_up(tapdevice);
 
     // Inside mac, is best served, by NOT being, the outside mac.
     std::string mac = generateRandomMACAddress();
@@ -399,7 +399,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         perror("socket");
-        exit(1); // TODO: Gracefull handling, of error.
+        exit(EXIT_FAILURE); 
     }
 
     remote.sun_family = AF_UNIX;

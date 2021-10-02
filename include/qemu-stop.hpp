@@ -2,7 +2,7 @@
 #define __QEMU_HOSTD_HPP
 
 #include <iostream>
-#include <string.h>
+#include <string>
 #include <signal.h>
 #include <json11.hpp>
 #include <hiredis/hiredis.h>

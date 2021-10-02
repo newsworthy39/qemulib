@@ -1,3 +1,7 @@
+#include <iostream>
+#include <string>
+#include <signal.h>
+#include <thread>
 #include <qemu-reboot.hpp>
 
 // NASTY.

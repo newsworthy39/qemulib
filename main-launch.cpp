@@ -1,3 +1,7 @@
+#include <iostream>
+#include <string>
+#include <signal.h>
+#include <thread>
 #include <qemu-launch.hpp>
 
 // NASTY.
@@ -29,8 +33,10 @@ int main(int argc, char *argv[])
     std::string password = "foobared";
     std::string topic = "";
     std::string arn = "";
-    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} " 
-                      "activation-test-br0://test-server-instance", argv[0], redis.c_str(), username.c_str(), instance.c_str());
+    bool snapshot = false;
+    std::string usage = m3_string_format("usage(): %s (-help) -redis {default=%s} -user {default=%s} -password {default=********} -instance {default=%s} "
+                                         "(-snapshot) activation-test-br0://test-server-instance",
+                                         argv[0], redis.c_str(), username.c_str(), instance.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -64,6 +70,10 @@ int main(int argc, char *argv[])
         {
             instance = argv[i + 1];
         }
+        if (std::string(argv[i]).find("-snapshit") != std::string::npos)
+        {
+            snapshot = !snapshot;
+        }
 
         if (std::string(argv[i]).find("://") != std::string::npos)
         {
@@ -76,14 +86,14 @@ int main(int argc, char *argv[])
     if (arn.empty())
     {
         std::cerr << "Error: ARN not supplied" << std::endl;
-        std::cout << usage << std::endl;        
+        std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }
 
-      if (topic.empty())
+    if (topic.empty())
     {
         std::cerr << "Error: TOPIC not supplied" << std::endl;
-        std::cout << usage << std::endl;        
+        std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }
 
@@ -106,10 +116,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    // Make sure, the activation-topic exists, 
+    
+    // Create our json-string.
+    std::string snapshot_str = snapshot == true ? "true" : "false";
+    std::string launch = m3_string_format("{ \"execute\": \"launch\", \"arguments\": { \"arn\": \"%s\", \"instance\": \"%s\", \"snapshot\": %s } }", 
+                    arn.c_str(), instance.c_str(), snapshot_str.c_str());
 
-    // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
-    std::string launch = m3_string_format("{ \"execute\": \"launch\", \"arguments\": { \"arn\": \"%s\", \"instance\": \"%s\" } }", arn.c_str(), instance.c_str());
     redisReply *redisr1;
     redisr1 = (redisReply *)redisCommand(c, "AUTH %s", password.c_str());
     freeReplyObject(redisr1);

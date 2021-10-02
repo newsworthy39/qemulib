@@ -1,5 +1,5 @@
-#ifndef __QEMU_HPP__
-#define __QEMU_HPP__
+#ifndef __QEMU_HYPERVISOR_HPP__
+#define __QEMU_HYPERVISOR_HPP__
 
 #include <iostream>
 #include <sys/types.h>
@@ -30,12 +30,12 @@ enum QEMU_DISPLAY
 };
 
 #define QEMU_LANG "da"
-#define QEMU_DEFAULT_IMG    "/usr/bin/qemu-img"
+#define QEMU_DEFAULT_IMG "/usr/bin/qemu-img"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
-#define QEMU_DEFAULT_INSTANCE "t1-medium"
-#define QEMU_DEFAULT_MACHINE  "q35"
+#define QEMU_DEFAULT_INSTANCE "t1-small"
+#define QEMU_DEFAULT_MACHINE "q35"
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
-#define QEMU_DEFAULT_IMAGEDB "resources/mydb.json"
+#define QEMU_DEFAULT_REDIS "10.0.94.254"
 
 std::string displayArgumentAsString(const QEMU_DISPLAY &display);
 int getNumberOfDrives(std::vector<std::string> &args);
@@ -88,23 +88,29 @@ void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingf
 void QEMU_allocate_drive(std::string id, ssize_t sz);
 
 /**
+ * QEMU_rebase_backed_drive(std::string id, std::string backingpath)
+ * Will rebase image onto a backing-image, but only while offline.
+ */
+void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath);
+
+/**
  * QEMU_Notify_Exited
  */
 void QEMU_Notify_Exited(QemuContext &ctx);
 
 /*
  * QEMU_Notify_Started()
- */ 
+ */
 void QEMU_Notify_Started(QemuContext &ctx);
 
 /*
  * QEMU_Notify_Started()
- */ 
+ */
 void QEMU_Notify_Register(QemuContext &ctx);
 
 /*
  * QEMU_Notify_Started()
- */ 
+ */
 void QEMU_Notify_Unregister(QemuContext &ctx);
 
 /**

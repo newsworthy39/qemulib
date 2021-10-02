@@ -260,6 +260,43 @@ void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingf
     }
 }
 
+/**
+ * QEMU_rebase_backed_drive(std::string id, std::string backingpath)
+ * Will rebase image onto a backing-image, but only while offline.
+ */
+void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
+{
+    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
+    if (!(fileExists(drive) || fileExists(backingfilepath))) // demorgan.
+    {
+        std::cerr << "One of the arguments file, isn't present." << std::endl; 
+        return;
+    }
+
+    int status = 0;
+    pid_t child = fork();
+    if (child == 0)
+    {
+        // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
+        std::vector<char *> left_argv;
+        left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_IMG));
+        left_argv.push_back(const_cast<char *>("rebase"));
+        left_argv.push_back(const_cast<char *>("-f"));
+        left_argv.push_back(const_cast<char *>("qcow2"));
+        left_argv.push_back(const_cast<char *>("-b"));
+        left_argv.push_back(const_cast<char *>(backingfilepath.c_str()));
+        left_argv.push_back(const_cast<char *>(drive.c_str()));
+        left_argv.push_back(NULL); // leave a null
+
+        execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
+    }
+    else
+    {
+        // Finally, we wait until the pid have returned, and send notifications.
+        pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
+    }
+}
+
 /*
  QEMU_machine
  Sets the correct machine-type.
@@ -398,8 +435,8 @@ void QEMU_cloud_init_remove(QemuContext &ctx)
 }
 
 /**
- * QEMU_Notify_started
- * Callback, that can be used when a hypervisor stops
+ * QEMU_get_pid
+ * get pid of running hypervisor.
  */
 pid_t QEMU_get_pid(QemuContext &ctx)
 {
@@ -411,5 +448,4 @@ pid_t QEMU_get_pid(QemuContext &ctx)
     pidfile >> pid;
     pidfile.close();
     return pid;
-
 }
