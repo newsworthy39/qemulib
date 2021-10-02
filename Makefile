@@ -30,13 +30,13 @@ qemu-hostd: main-hostd.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json1
 qemu-kvm: main-kvm.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
-qemu-image: main-image.o src/qemu-manage.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
-
 src/qemu-link.cpp:
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 src/qemu-hypervisor.cpp:
+	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
+
+src/qemu-manage.cpp:
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)	
 
 libraries/json11/json11.cpp: 
