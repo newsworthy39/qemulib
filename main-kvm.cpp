@@ -104,7 +104,7 @@ int main(int argc, char *argv[])
             std::cerr << "Bridge allocation error: " << bridge_result << std::endl;
             exit(EXIT_FAILURE);
         }
-        QEMU_link_up(bridge, 1);;
+        QEMU_link_up(bridge);
         std::string tapdevice = QEMU_allocate_tun(ctx);
         QEMU_enslave_interface(bridge, tapdevice);
 

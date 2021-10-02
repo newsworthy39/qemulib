@@ -27,7 +27,7 @@ qemu-launch: main-launch.o src/qemu-manage.o src/qemu-hypervisor.o libraries/jso
 qemu-hostd: main-hostd.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-kvm: main.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
+qemu-kvm: main-kvm.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
 qemu-image: main-image.o src/qemu-manage.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
