@@ -98,13 +98,13 @@ void onResetMessage(json11::Json::object arguments)
     }
 
     auto it = std::find_if(reservations.begin(), reservations.end(), [&reservation](QemuContext &ctx)
-                           { return (QEMU_Guest_ID(ctx) == reservation); });
+                           { return (QEMU_reservation_id(ctx) == reservation); });
 
     if (it != reservations.end())
     {
         QEMU_powerdown(*it);
 
-        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*it).c_str());
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(*it).c_str());
 
         broadcastMessage(reply, confirmation);
     }
@@ -131,13 +131,13 @@ void onPowerdownMessage(json11::Json::object arguments)
     }
 
     auto ctx = std::find_if(reservations.begin(), reservations.end(), [&reservation](QemuContext &ctx)
-                            { return (QEMU_Guest_ID(ctx) == reservation); });
+                            { return (QEMU_reservation_id(ctx) == reservation); });
 
     if (ctx != reservations.end())
     {
         force == 0 ? QEMU_powerdown(*ctx) : QEMU_kill(*ctx);
 
-        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(*ctx).c_str());
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(*ctx).c_str());
 
         broadcastMessage(reply, confirmation);
     }
@@ -185,7 +185,7 @@ void onReservationsMessage(json11::Json::object arguments)
     for (auto it = reservations.begin(); it != reservations.end();)
     {
         QemuContext ctx = (*it);
-        reservations_json js{"server00", QEMU_Guest_ID(ctx)};
+        reservations_json js{"server00", QEMU_reservation_id(ctx)};
         res.push_back(js);
         ++it;
     }
@@ -206,6 +206,7 @@ void onLaunchMessage(json11::Json::object arguments)
     // First, get the ARN, and then we setup the context.
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string arn = arguments["arn"].string_value();
+
     bool snpshot = arguments["snapshot"].bool_value();
     if (arn.empty())
     {
@@ -220,13 +221,12 @@ void onLaunchMessage(json11::Json::object arguments)
 
     // TODO: We probably, need some sort of library handling here.
     QemuContext ctx;
-    QEMU_allocate_backed_drive(arn, 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
-    int result = QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()));
-    if (result == -1)
+    QEMU_allocate_backed_drive(m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()), 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
+    if (-1 == QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str())))
     {
         return;
     }
-    
+
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
     QEMU_machine(ctx, QEMU_DEFAULT_MACHINE);
@@ -235,8 +235,9 @@ void onLaunchMessage(json11::Json::object arguments)
      * If -snapshot, was provided, then
      * we make a snapshot 
      */
-    if (snpshot) {
-         QEMU_ephimeral(ctx); 
+    if (snpshot)
+    {
+        QEMU_ephimeral(ctx);
     }
 
     if (!cloud_init.compare("None"))
@@ -278,7 +279,7 @@ void onLaunchMessage(json11::Json::object arguments)
      * We store, the uuid, for the possibility, to query the process (threaded)
      */
         reservations.push_back(ctx);
-        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_Guest_ID(ctx).c_str());
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(ctx).c_str());
         broadcastMessage("reply-" + topic, confirmation);
 
         // Finally, we wait until the pid have returned, and send notifications.
@@ -294,11 +295,10 @@ void onLaunchMessage(json11::Json::object arguments)
             QEMU_set_default_namespace();
 
             /**
-         * Finally we clean up the reservation 
-         */
-
+             * Finally we clean up the reservation 
+             */
             auto it = std::find_if(reservations.begin(), reservations.end(), [&ctx](QemuContext &ct)
-                                   { return (QEMU_Guest_ID(ct) == QEMU_Guest_ID(ctx)); });
+                                   { return (QEMU_reservation_id(ct) == QEMU_reservation_id(ctx)); });
 
             if (it != reservations.end())
             {
