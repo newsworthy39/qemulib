@@ -68,7 +68,20 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
-            QEMU_drive(ctx, argv[i + 1]);
+            std::string drive = argv[i + 1];
+            if (!fileExists(drive))
+            {
+                QEMU_allocate_backed_drive(drive, 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
+                if (-1 == QEMU_drive(ctx, drive))
+                {
+                    exit(EXIT_FAILURE);
+                }
+            }
+            else
+            {
+                QEMU_drive(ctx, drive);
+            }
+
             mandatory = 0;
         }
 
@@ -83,7 +96,8 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (mandatory == 1) {
+    if (mandatory == 1)
+    {
         std::cerr << "Error: At least one -drive, must be supplied." << std::endl;
         std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
