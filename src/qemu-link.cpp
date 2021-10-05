@@ -393,7 +393,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
     struct sockaddr_un remote;
     char str[4096];
 
-    std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
+    std::string guestid = QEMU_reservation_id(ctx); // Returns an UUIDv4.
     std::string str_qmp = m3_string_format("/tmp/%s.socket", guestid.c_str());
 
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
