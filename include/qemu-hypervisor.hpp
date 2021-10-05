@@ -37,9 +37,6 @@ enum QEMU_DISPLAY
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
 #define QEMU_DEFAULT_REDIS "10.0.94.254"
 
-std::string displayArgumentAsString(const QEMU_DISPLAY &display);
-int getNumberOfDrives(std::vector<std::string> &args);
-
 /** Stack functions */
 void PushSingleArgument(QemuContext &args, std::string value);
 void PushArguments(QemuContext &args, std::string key, std::string value);
@@ -127,13 +124,7 @@ void QEMU_ephimeral(QemuContext &ctx);
  * QEMU_Guest_Id
  * Get (or create) a guest-id (uuidv4).
  */
-std::string QEMU_Guest_ID(QemuContext &ctx);
-
-/**
- * QEMU_Generate_ID
- * Generate a uuidv4.
- */
-void QEMU_Generate_ID(QemuContext &ctx);
+std::string QEMU_reservation_id(QemuContext &ctx);
 
 /**
  * QEMU_Notify_started

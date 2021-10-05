@@ -71,20 +71,6 @@ std::map<std::string, std::tuple<int, int>> instancemodels = {
     {"t1-large", {4096, 4}},
     {"t1-xlarge", {8196, 8}}};
 
-/*
- * This allows us, to count the drives, to insert them in proper order.
- */
-int getNumberOfDrives(std::vector<std::string> &args)
-{
-    int driveCount = 0;
-    for (std::vector<std::string>::iterator it = args.begin(); it != args.end(); ++it)
-    {
-        if ((*it) == "-drive")
-            driveCount++;
-    }
-    return driveCount;
-}
-
 /** Stack functions */
 void PushSingleArgument(QemuContext &ctx, std::string value)
 {
@@ -97,24 +83,21 @@ void PushArguments(QemuContext &ctx, std::string key, std::string value)
     PushSingleArgument(ctx, value);
 }
 
-void QEMU_Generate_ID(QemuContext &ctx)
+std::string QEMU_reservation_id(QemuContext &ctx)
 {
-    std::string id = m2_generate_uuid_v4();
-    PushArguments(ctx, "-name", id);
-    std::cout << "Using name: " << id << std::endl;
-}
+    auto it = std::find_if(ctx.begin(), ctx.end(), [&ctx](const std::string &ct)
+                           { return "-name" == ct; });
 
-std::string QEMU_Guest_ID(QemuContext &ctx)
-{
-    QemuContext::iterator p = std::find(ctx.begin(), ctx.end(), "-name");
-    if (p != ctx.end())
+    if (it != ctx.end())
     {
-        return *++(p); // return the next field.
+        return *++(it); // return the next field.
     }
     else
     {
-        QEMU_Generate_ID(ctx);
-        return QEMU_Guest_ID(ctx);
+        std::string id = m2_generate_uuid_v4();
+        PushArguments(ctx, "-name", id);
+        std::cout << "Using name: " << id << std::endl;
+        return id;
     }
 }
 
@@ -132,10 +115,9 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port)
  */
 void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 {
-    QEMU_Generate_ID(ctx);
-
     int memory = 2048, cpu = 2;
-    std::string guestid = QEMU_Guest_ID(ctx);
+    
+    std::string guestid = QEMU_reservation_id(ctx);
 
     PushArguments(ctx, "-device", "virtio-rng-pci"); // random
     PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
@@ -175,7 +157,7 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
-        PushArguments(args, "-drive", m2_string_format("if=virtio,file=%s,index=%d,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str(), getNumberOfDrives(args)));
+        PushArguments(args, "-drive", m2_string_format("if=virtio,file=%s,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str()));
         std::cout << "Using drive: " << drive << std::endl;
         return 0;
     }
@@ -228,8 +210,7 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
  */
 void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile)
 {
-    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
-    if (fileExists(drive))
+    if (fileExists(id))
     {
         return;
     }
@@ -247,7 +228,7 @@ void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingf
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfile.c_str()));
-        left_argv.push_back(const_cast<char *>(drive.c_str()));
+        left_argv.push_back(const_cast<char *>(id.c_str()));
         left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
         left_argv.push_back(NULL); // leave a null
 
@@ -269,7 +250,7 @@ void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
     std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
     if (!(fileExists(drive) || fileExists(backingfilepath))) // demorgan.
     {
-        std::cerr << "One of the arguments file, isn't present." << std::endl; 
+        std::cerr << "One of the arguments file, isn't present." << std::endl;
         return;
     }
 
@@ -318,7 +299,7 @@ void QEMU_machine(QemuContext &args, const std::string model)
  */
 void QEMU_iso(QemuContext &args, const std::string &iso)
 {
-    PushArguments(args, "-drive", m2_string_format("file=%s,index=%d,media=cdrom", iso.c_str(), getNumberOfDrives(args)));
+    PushArguments(args, "-drive", m2_string_format("file=%s,media=cdrom", iso.c_str()));
 }
 
 /**
@@ -393,7 +374,7 @@ void QEMU_Notify_Started(QemuContext &ctx)
 void QEMU_Notify_Exited(QemuContext &ctx)
 {
 
-    std::string guestid = QEMU_Guest_ID(ctx);
+    std::string guestid = QEMU_reservation_id(ctx);
     std::string str_mon = m2_string_format("/tmp/%s.monitor", guestid.c_str());
     std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
     std::string str_socket = m2_string_format("/tmp/%s.socket", guestid.c_str());
@@ -440,7 +421,7 @@ void QEMU_cloud_init_remove(QemuContext &ctx)
  */
 pid_t QEMU_get_pid(QemuContext &ctx)
 {
-    std::string guestid = QEMU_Guest_ID(ctx);
+    std::string guestid = QEMU_reservation_id(ctx);
     std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
     pid_t pid;
     std::ifstream pidfile;
