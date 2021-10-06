@@ -1,0 +1,77 @@
+//    // Setup redis.
+//     std::string guestid = QEMU_Guest_ID(ctx); // Returns an UUIDv4.
+
+//     // Maybe a RAII aproach, would solve this tedious "freereplyobject"..
+//     rconfirmation = (redisReply *)redisCommand(c1, "SUBSCRIBE qmp-%s ", guestid.c_str());
+//     freeReplyObject(rconfirmation);
+
+//     // Start the back-and-forth loop
+//     while (redisGetReply(c1, (void **)&rconfirmation) == REDIS_OK)
+//     {
+//         if (rconfirmation->type == REDIS_REPLY_ARRAY)
+//         {
+//             std::string str_error;
+//             json11::Json jsn = json11::Json::parse(rconfirmation->element[2]->str, str_error);
+//             if (!str_error.empty())
+//             {
+//                 continue;
+//             }
+
+//             json11::Json jsn_object = jsn.object_items();
+//             std::string command = jsn_object["execute"].string_value();
+
+//             // TODO: intercept and parse json, in reply-str, find "exit" and stuff,
+//             std::cout << "Forward to QMP-socket " << rconfirmation->element[2]->str << std::endl;
+//             char str[4096];
+//             int s = QEMU_OpenQMPSocket(ctx);
+//             int t = send(s, rconfirmation->element[2]->str, strlen(rconfirmation->element[2]->str) + 1, 0);
+//             sleep(1); // This is a variable point, that needs to be looked at. e-poll?
+//             t = recv(s, str, 4096, 0);
+
+//             if (command.compare("system_powerdown") == 0)
+//             {
+//                 freeReplyObject(rconfirmation);
+//                 close(s);
+//                 break;
+//             }
+
+//             // consume message
+//             freeReplyObject(rconfirmation);
+//             close(s);
+//         }
+//     }
+//     redisFree(c1);
+
+
+
+# strace ip netns add test:
+getuid()                                = 0
+socket(AF_NETLINK, SOCK_RAW|SOCK_CLOEXEC, NETLINK_ROUTE) = 3
+setsockopt(3, SOL_SOCKET, SO_SNDBUF, [32768], 4) = 0
+setsockopt(3, SOL_SOCKET, SO_RCVBUF, [1048576], 4) = 0
+setsockopt(3, SOL_NETLINK, NETLINK_EXT_ACK, [1], 4) = 0
+bind(3, {sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, 12) = 0
+getsockname(3, {sa_family=AF_NETLINK, nl_pid=19130, nl_groups=00000000}, [12]) = 0
+setsockopt(3, SOL_NETLINK, NETLINK_DUMP_STRICT_CHK, [1], 4) = 0
+openat(AT_FDCWD, "/proc/self/ns/net", O_RDONLY) = 4
+sendto(3, {{len=28, type=RTM_GETNSID, flags=NLM_F_REQUEST, seq=0, pid=0}, {rtgen_family=AF_UNSPEC}, {{nla_len=8, nla_type=NETNSA_FD}, 4}}, 28, 0, NULL, 0) = 28
+recvmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base={{len=28, type=RTM_NEWNSID, flags=0, seq=0, pid=19130}, {rtgen_family=AF_UNSPEC}, {{nla_len=8, nla_type=NETNSA_NSID}, -1}}, iov_len=16384}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 28
+close(4)                                = 0
+socket(AF_NETLINK, SOCK_RAW|SOCK_CLOEXEC, NETLINK_ROUTE) = 4
+setsockopt(4, SOL_SOCKET, SO_SNDBUF, [32768], 4) = 0
+setsockopt(4, SOL_SOCKET, SO_RCVBUF, [1048576], 4) = 0
+setsockopt(4, SOL_NETLINK, NETLINK_EXT_ACK, [1], 4) = 0
+bind(4, {sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, 12) = 0
+getsockname(4, {sa_family=AF_NETLINK, nl_pid=-1885008869, nl_groups=00000000}, [12]) = 0
+mkdir("/run/netns", 0755)               = 0
+mount("", "/run/netns", 0x557f8e6cc67f, MS_REC|MS_SHARED, NULL) = -1 EINVAL (Invalid argument)
+mount("/run/netns", "/run/netns", 0x557f8e6cc67f, MS_BIND|MS_REC, NULL) = 0
+mount("", "/run/netns", 0x557f8e6cc67f, MS_REC|MS_SHARED, NULL) = 0
+openat(AT_FDCWD, "/run/netns/test", O_RDONLY|O_CREAT|O_EXCL, 000) = 5
+close(5)                                = 0
+openat(AT_FDCWD, "/proc/self/ns/net", O_RDONLY|O_CLOEXEC) = 5
+unshare(CLONE_NEWNET)                   = 0
+mount("/proc/self/ns/net", "/run/netns/test", 0x557f8e6cc67f, MS_BIND, NULL) = 0
+setns(5, CLONE_NEWNET)                  = 0
+close(5)                                = 0
+exit_group(0)                           
