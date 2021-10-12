@@ -222,7 +222,7 @@ void onLaunchMessage(json11::Json::object arguments)
     // TODO: We probably, need some sort of library handling here.
     QemuContext ctx;
     QEMU_allocate_backed_drive(m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()), 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
-    if (-1 == QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str())))
+    if (-1 == QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()) , 0) )
     {
         return;
     }
@@ -262,7 +262,7 @@ void onLaunchMessage(json11::Json::object arguments)
     std::string tapdevice = QEMU_allocate_tun(ctx);
     QEMU_enslave_interface(bridge, tapdevice);
     QEMU_set_default_namespace();
-    QEMU_Notify_Started(ctx); // Notify Qemu started.
+    QEMU_notified_started(ctx); // Notify Qemu started.
 
     // fork and wait, return - then cleanup files.
     pid_t qemupid = fork();
@@ -287,7 +287,7 @@ void onLaunchMessage(json11::Json::object arguments)
         pid_t w = waitpid(qemupid, &status, WUNTRACED | WCONTINUED);
         if (WIFEXITED(status))
         {
-            QEMU_Notify_Exited(ctx);
+            QEMU_notified_exited(ctx);
 
             // We have to be in the right namespace.
             QEMU_set_namespace(nspace);
