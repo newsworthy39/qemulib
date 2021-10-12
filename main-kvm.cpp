@@ -149,8 +149,8 @@ int main(int argc, char *argv[])
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_cloud_init_remove(ctx);
-
         QEMU_notified_started(ctx);
+
         int bridgeresult = QEMU_allocate_bridge(bridge);
         if (bridgeresult == 1)
         {
@@ -171,7 +171,7 @@ int main(int argc, char *argv[])
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
-                QEMU_Delete_Link(ctx, tapdevice);
+                QEMU_delete_link(ctx, tapdevice);
             }
 
             return EXIT_SUCCESS;

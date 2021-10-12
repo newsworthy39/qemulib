@@ -345,7 +345,7 @@ std::string QEMU_allocate_tun(QemuContext &ctx)
     return tapdevice;
 }
 
-void QEMU_Delete_Link(QemuContext &ctx, std::string interface)
+void QEMU_delete_link(QemuContext &ctx, std::string interface)
 {
     struct rtnl_link *link;
     struct nl_sock *sk;

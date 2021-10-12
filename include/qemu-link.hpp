@@ -24,7 +24,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
 std::string generateRandomMACAddress();
 std::string QEMU_Generate_Link_Name(std::string prefix, int length);
 
-void QEMU_Delete_Link(QemuContext &ctx, std::string interface);
+void QEMU_delete_link(QemuContext &ctx, std::string interface);
 int QEMU_OpenQMPSocket(QemuContext &ctx);
 int QEMU_allocate_bridge(std::string bridge);
 void QEMU_enslave_interface(std::string bridge, std::string slave);

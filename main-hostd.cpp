@@ -291,7 +291,7 @@ void onLaunchMessage(json11::Json::object arguments)
 
             // We have to be in the right namespace.
             QEMU_set_namespace(nspace);
-            QEMU_Delete_Link(ctx, tapdevice);
+            QEMU_delete_link(ctx, tapdevice);
             QEMU_set_default_namespace();
 
             /**
