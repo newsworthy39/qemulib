@@ -33,5 +33,4 @@ int QEMU_link_up(const std::string ifname);
 void QEMU_set_namespace(std::string namespace_path);
 void QEMU_set_default_namespace();
 
-
 #endif

@@ -20,7 +20,12 @@
 #include <fstream>
 #include <algorithm>
 
-typedef std::vector<std::string> QemuContext;
+//typedef std::vector<std::string> QemuContext;
+
+struct QemuContext {
+    std::vector<std::string> devices;
+    std::vector<std::string> drives;
+};
 
 enum QEMU_DISPLAY
 {
@@ -49,7 +54,7 @@ void QEMU_instance(QemuContext &args, const std::string &instanceargument);
 /*
  * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
 */
-int QEMU_drive(QemuContext &args, const std::string &drive);
+int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootindex);
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)
@@ -59,7 +64,7 @@ void QEMU_machine(QemuContext &args, const std::string model);
 /*
  * QEMU_iso (QemuContext &args, const std::string &model, const std::string &dabase)
 */
-void QEMU_iso(QemuContext &args, const std::string &model, const std::string &database);
+void QEMU_iso(QemuContext &ctx, const std::string path);
 
 /**
  * QEMU_launch(QemuContext& args, std::string tapname, bool daemonize)
@@ -91,22 +96,22 @@ void QEMU_allocate_drive(std::string id, ssize_t sz);
 void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath);
 
 /**
- * QEMU_Notify_Exited
+ * QEMU_notified_exited
  */
-void QEMU_Notify_Exited(QemuContext &ctx);
+void QEMU_notified_exited(QemuContext &ctx);
 
 /*
- * QEMU_Notify_Started()
+ * QEMU_notified_started()
  */
-void QEMU_Notify_Started(QemuContext &ctx);
+void QEMU_notified_started(QemuContext &ctx);
 
 /*
- * QEMU_Notify_Started()
+ * QEMU_notified_started()
  */
 void QEMU_Notify_Register(QemuContext &ctx);
 
 /*
- * QEMU_Notify_Started()
+ * QEMU_notified_started()
  */
 void QEMU_Notify_Unregister(QemuContext &ctx);
 
@@ -133,6 +138,12 @@ std::string QEMU_reservation_id(QemuContext &ctx);
 void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src);
 
 /**
+ * QEMU_Notify_started
+ * Sets the cloud-init arguments source
+ */
+void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string instance_id);
+
+/**
  * QEMU_Cluod_init_arguments
  * Removes any cloud-init arguments
  * serial=ds=None
@@ -146,5 +157,10 @@ bool fileExists(const std::string &filename);
  * get pid of running hypervisor.
  */
 pid_t QEMU_get_pid(QemuContext &ctx);
+
+/**
+ * generateRandomPrefixedString(std::string prefix, int length)
+ */
+std::string generateRandomPrefixedString(std::string prefix, int length);
 
 #endif

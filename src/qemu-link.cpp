@@ -37,23 +37,6 @@ std::string generateRandomMACAddress()
     return ss.str();
 }
 
-std::string generateRandomPrefixedString(std::string prefix, int length = 8)
-{
-    static std::random_device r;
-    static std::default_random_engine e1(r());
-    static std::uniform_int_distribution<int> dis(0, 15);
-
-    std::stringstream ss;
-    int i = 0, count = 0;
-    ss << std::hex;
-    for (i = 0; i < length; i++)
-    {
-        ss << dis(e1);
-    }
-
-    return m3_string_format("%s-%s", prefix.c_str(), ss.str().c_str());
-}
-
 int QEMU_allocate_bridge(std::string bridge)
 {
     struct rtnl_link *link;
