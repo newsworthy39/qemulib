@@ -1,6 +1,7 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
+#include <qemu-images.hpp>
 
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)
@@ -26,15 +27,16 @@ int main(int argc, char *argv[])
     std::string bridge = "br0";
     std::string machine = QEMU_DEFAULT_MACHINE;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
-    int mandatory = 1;
+    int mandatory = 0;
 
-    std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -a {default=4444} "
-                                         "-instance {default=%s} -bridge {default=%s} -machine {default=%s} -iso {default=none} -drive hdd (n+1)",
+    std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
+                                         "-instance {default=%s} -bridge {default=%s} -machine {default=%s} -iso cdrom "
+                                         "-drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], instance.c_str(), bridge.c_str(), machine.c_str());
 
+    // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
-    { // Remember argv[0] is the path to the program, we want from argv[1] onwards
-
+    {
         if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
@@ -66,26 +68,27 @@ int main(int argc, char *argv[])
             machine = argv[i + 1];
         }
 
-        if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-iso") != std::string::npos && (i + 1 < argc))
         {
-            std::string drive = argv[i + 1];
-            if (!fileExists(drive))
-            {
-                QEMU_allocate_backed_drive(drive, 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
-                if (-1 == QEMU_drive(ctx, drive))
-                {
-                    exit(EXIT_FAILURE);
-                }
-            }
-            else
-            {
-                QEMU_drive(ctx, drive);
-            }
-
-            mandatory = 0;
+            std::string drive = m3_string_format("/home/gandalf/Downloads/Applications/%s.iso", argv[i + 1]);
+            QEMU_iso(ctx, drive);
         }
 
-        if (std::string(argv[i]).find("-a") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
+        {
+            std::string drive = m3_string_format("/mnt/faststorage/vms/%s.img", argv[i + 1]);
+            if (!fileExists(drive))
+            {
+                QEMU_allocate_drive(drive, 32);
+            }
+
+            if (-1 == QEMU_drive(ctx, drive, 1))
+            {
+                exit(EXIT_FAILURE);
+            }
+        }
+
+        if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
         {
             QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
         }
@@ -94,11 +97,46 @@ int main(int argc, char *argv[])
         {
             QEMU_ephimeral(ctx);
         }
+
+        if (std::string(argv[i]).find("://") != std::string::npos)
+        {
+            const std::string delimiter = "://";
+            std::string instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+
+            auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
+                                   { return instanceid.starts_with(std::get<0>(ct)); });
+
+            std::string absdrive = m3_string_format("/mnt/faststorage/vms/%s.img", instanceid.c_str());
+
+            if (it != drives.end())
+            {
+                std::tuple<std::string, std::string> conf = *it;
+                std::string backingdrive = std::get<1>(conf);
+
+                if (!fileExists(absdrive))
+                {
+                    QEMU_allocate_backed_drive(absdrive, 32, m3_string_format("/mnt/faststorage/vms/%s.img", backingdrive.c_str()));
+                }
+
+                QEMU_drive(ctx, absdrive, 0);
+
+                mandatory = 1;
+            }
+            else
+            {
+                if (!fileExists(absdrive))
+                {
+                    QEMU_allocate_drive(absdrive, 32);
+                }
+                QEMU_drive(ctx, absdrive, 0);
+                mandatory = 1;
+            }
+        }
     }
 
-    if (mandatory == 1)
+    if (mandatory == 0)
     {
-        std::cerr << "Error: At least one -drive, must be supplied." << std::endl;
+        std::cerr << "Error: Missing mandatory fields" << std::endl;
         std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }
@@ -110,12 +148,13 @@ int main(int argc, char *argv[])
         QEMU_instance(ctx, instance);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
-        QEMU_Notify_Started(ctx);
+        QEMU_cloud_init_remove(ctx);
 
-        int bridge_result = QEMU_allocate_bridge(bridge);
-        if (bridge_result != 0)
+        QEMU_notified_started(ctx);
+        int bridgeresult = QEMU_allocate_bridge(bridge);
+        if (bridgeresult == 1)
         {
-            std::cerr << "Bridge allocation error: " << bridge_result << std::endl;
+            std::cerr << "Bridge allocation error." << std::endl;
             exit(EXIT_FAILURE);
         }
         QEMU_link_up(bridge);
@@ -129,7 +168,6 @@ int main(int argc, char *argv[])
         }
         else
         {
-
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
