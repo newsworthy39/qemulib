@@ -18,6 +18,23 @@ std::string m2_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
+std::string generateRandomPrefixedString(std::string prefix, int length = 8)
+{
+    static std::random_device r;
+    static std::default_random_engine e1(r());
+    static std::uniform_int_distribution<int> dis(0, 15);
+
+    std::stringstream ss;
+    int i = 0, count = 0;
+    ss << std::hex;
+    for (i = 0; i < length; i++)
+    {
+        ss << dis(e1);
+    }
+
+    return m2_string_format("%s-%s", prefix.c_str(), ss.str().c_str());
+}
+
 std::string m2_generate_uuid_v4()
 {
     static std::random_device rd;
@@ -74,7 +91,7 @@ std::map<std::string, std::tuple<int, int>> instancemodels = {
 /** Stack functions */
 void PushSingleArgument(QemuContext &ctx, std::string value)
 {
-    ctx.push_back(value);
+    ctx.devices.push_back(value);
 }
 
 void PushArguments(QemuContext &ctx, std::string key, std::string value)
@@ -83,12 +100,23 @@ void PushArguments(QemuContext &ctx, std::string key, std::string value)
     PushSingleArgument(ctx, value);
 }
 
+void PushSingleDriveArgument(QemuContext &ctx, std::string value)
+{
+    ctx.drives.push_back(value);
+}
+
+void PushDriveArgument(QemuContext &ctx, std::string key, std::string value)
+{
+    PushSingleDriveArgument(ctx, key);
+    PushSingleDriveArgument(ctx, value);
+}
+
 std::string QEMU_reservation_id(QemuContext &ctx)
 {
-    auto it = std::find_if(ctx.begin(), ctx.end(), [&ctx](const std::string &ct)
+    auto it = std::find_if(ctx.devices.begin(), ctx.devices.end(), [&ctx](const std::string &ct)
                            { return "-name" == ct; });
 
-    if (it != ctx.end())
+    if (it != ctx.devices.end())
     {
         return *++(it); // return the next field.
     }
@@ -116,19 +144,20 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port)
 void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 {
     int memory = 2048, cpu = 2;
-    
+
     std::string guestid = QEMU_reservation_id(ctx);
 
     PushArguments(ctx, "-device", "virtio-rng-pci"); // random
-    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
-    PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestid.c_str()));
-    PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server,nowait", guestid.c_str()));
+    PushArguments(ctx, "-device", "virtio-balloon");
     PushArguments(ctx, "-runas", "gandalf");
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", QEMU_LANG);
-    PushArguments(ctx, "-boot", "menu=off,order=cdn,once=c,strict=off"); // Boot with ISO if disk is missing.
+    PushArguments(ctx, "-boot", "menu=off,order=cdn,strict=off"); // Boot with ISO if disk is missing.
     PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
+    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
+    PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestid.c_str()));
+    PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server,nowait", guestid.c_str()));
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -147,17 +176,25 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d,threads=1,dies=1", cpu, cpu, cpu * 2)); // cpu setup.
     PushArguments(ctx, "-cpu", "host");
 
+    //AuthenticIntel)
+    //CPU="-cpu host,kvm=on,vendor=GenuineIntel,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt";;
+    //AuthenticAMD|*)
+    //# Used in past versions: +movbe,+smep,+xgetbv1,+xsavec
+    //# Warn on AMD:           +fma4,+pcid
+    //CPU="-cpu Penryn,kvm=on,vendor=GenuineIntel,+aes,+avx,+avx2,+bmi1,+bmi2,+fma,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt,+popcnt,+ssse3,+sse4.2,vmware-cpuid-freq=on,+xsave,+xsaveopt,check";;
+
     std::cout << "Using instance-profile: " << instanceargument << ", memory: " << memory << ", cpu: " << cpu << std::endl;
 }
 
 /**
  * QEMU_drive()
  */
-int QEMU_drive(QemuContext &args, const std::string &drive)
+int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootindex = 0)
 {
     if (fileExists(drive))
     {
-        PushArguments(args, "-drive", m2_string_format("if=virtio,file=%s,media=disk,format=qcow2,cache=writeback,id=blockdev", drive.c_str()));
+        std::string blockdevice = generateRandomPrefixedString("block", 4);
+        PushDriveArgument(args, "-drive", m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", bootindex, drive.c_str(), blockdevice.c_str()));
         std::cout << "Using drive: " << drive << std::endl;
         return 0;
     }
@@ -172,10 +209,9 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
  * QEMU_allocate_drive(std::string id, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_drive(std::string id, ssize_t sz)
+void QEMU_allocate_drive(std::string path, ssize_t sz)
 {
-    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
-    if (fileExists(drive))
+    if (fileExists(path))
     {
         return;
     }
@@ -191,7 +227,7 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
         left_argv.push_back(const_cast<char *>("create"));
         left_argv.push_back(const_cast<char *>("-f"));
         left_argv.push_back(const_cast<char *>("qcow2"));
-        left_argv.push_back(const_cast<char *>(drive.c_str()));
+        left_argv.push_back(const_cast<char *>(path.c_str()));
         left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
         left_argv.push_back(NULL); // leave a null
 
@@ -208,9 +244,9 @@ void QEMU_allocate_drive(std::string id, ssize_t sz)
  * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile)
+void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backingfile)
 {
-    if (fileExists(id))
+    if (fileExists(path))
     {
         return;
     }
@@ -228,7 +264,7 @@ void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingf
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfile.c_str()));
-        left_argv.push_back(const_cast<char *>(id.c_str()));
+        left_argv.push_back(const_cast<char *>(path.c_str()));
         left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
         left_argv.push_back(NULL); // leave a null
 
@@ -297,16 +333,17 @@ void QEMU_machine(QemuContext &args, const std::string model)
  * Add an ISO to the hypervisor.
  * std::string isopath
  */
-void QEMU_iso(QemuContext &args, const std::string &iso)
+void QEMU_iso(QemuContext &ctx, const std::string iso)
 {
-    PushArguments(args, "-drive", m2_string_format("file=%s,media=cdrom", iso.c_str()));
+    PushArguments(ctx, "-cdrom", m2_string_format("%s", iso.c_str()));
+    std::cout << "Using iso: " << iso << std::endl;
 }
 
 /**
  * QEMU_display
  * Sets the display, for the monitor
  */
-void QEMU_display(std::vector<std::string> &ctx, const QEMU_DISPLAY &display)
+void QEMU_display(QemuContext &ctx, const QEMU_DISPLAY &display)
 {
     if (display == QEMU_DISPLAY::NONE)
     {
@@ -347,10 +384,16 @@ void QEMU_launch(QemuContext &args, bool block)
     std::vector<char *> left_argv;
     left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_SYSTEM));
     left_argv.push_back(const_cast<char *>("-enable-kvm"));
-    for (int i = 0; i < args.size(); i++)
-    {
-        left_argv.push_back(const_cast<char *>(args[i].c_str()));
-    }
+
+    // First, we take the devices.
+    std::for_each(args.devices.begin(), args.devices.end(), [&left_argv](const std::string &device)
+                  { left_argv.push_back(const_cast<char *>(device.c_str())); });
+
+    // Then we take, the drives in a orderly fasion.
+    std::for_each(args.drives.begin(), args.drives.end(), [&left_argv](const std::string &drive)
+                  { left_argv.push_back(const_cast<char *>(drive.c_str())); });
+
+    // Next, we copy the darn drives
     left_argv.push_back(NULL); // leave a null
 
     execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
@@ -363,15 +406,16 @@ void QEMU_launch(QemuContext &args, bool block)
  * QEMU_Notify_started
  * Callback, that can be used when a hypervisor starts
  */
-void QEMU_Notify_Started(QemuContext &ctx)
+void QEMU_notified_started(QemuContext &ctx)
 {
+
 }
 
 /**
  * QEMU_Notify_started
  * Callback, that can be used when a hypervisor stops
  */
-void QEMU_Notify_Exited(QemuContext &ctx)
+void QEMU_notified_exited(QemuContext &ctx)
 {
 
     std::string guestid = QEMU_reservation_id(ctx);
@@ -403,6 +447,16 @@ void QEMU_Notify_Exited(QemuContext &ctx)
 void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src)
 {
     PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud-net;s=%s", cloud_settings_src.c_str()));
+}
+
+/**
+ * QEMU_Cluod_init_arguments
+ * Sets the cloud-init arguments-source
+ * // serial=ds=nocloud-net;s=http://10.10.0.1:8000/
+ */
+void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string instance_id)
+{
+    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud;h=%s;i=%s;s=file:///tmp/seed", hostname.c_str(), instance_id.c_str()));
 }
 
 /**
