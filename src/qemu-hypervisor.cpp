@@ -35,6 +35,19 @@ std::string generateRandomPrefixedString(std::string prefix, int length = 8)
     return m2_string_format("%s-%s", prefix.c_str(), ss.str().c_str());
 }
 
+/**
+ * generatePrefixedUniqueString(std::string prefix, int length)
+ */
+std::string generatePrefixedUniqueString(std::string prefix, std::size_t hash, unsigned int length = 8)
+{
+    std::stringstream ss;
+    int i = 0, count = 0;
+    ss << std::hex;
+    ss << hash;
+
+    return m2_string_format("%s-%s", prefix.c_str(), ss.str().substr(0, length).c_str());
+}
+
 std::string m2_generate_uuid_v4()
 {
     static std::random_device rd;
@@ -408,7 +421,6 @@ void QEMU_launch(QemuContext &args, bool block)
  */
 void QEMU_notified_started(QemuContext &ctx)
 {
-
 }
 
 /**
@@ -467,6 +479,16 @@ void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string in
 void QEMU_cloud_init_remove(QemuContext &ctx)
 {
     PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
+}
+
+/**
+ * QEMU_cloud_init_default
+ * Removes any cloud-init arguments
+ * serial=ds=None
+ */
+void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid)
+{
+    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud;h=%s;i=%s", hostname.c_str(), instanceid.c_str()));
 }
 
 /**
