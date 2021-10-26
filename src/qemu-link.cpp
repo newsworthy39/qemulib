@@ -114,7 +114,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
 
     nl_addr_put(addr);
 
-    rtnl_link_macvtap_set_mode(link, rtnl_link_macvtap_str2mode("vepa"));
+    rtnl_link_macvtap_set_mode(link, rtnl_link_macvtap_str2mode("bridge"));
     rtnl_link_set_name(link, link_name.c_str());
 
     if ((err = rtnl_link_add(sk, link, NLM_F_CREATE)) < 0)
@@ -144,7 +144,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
-    PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", guestId.c_str(), mac.c_str()));
+    PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", mac.c_str(), guestId.c_str()));
 
     return link_name;
 }
