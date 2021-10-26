@@ -22,17 +22,17 @@ int main(int argc, char *argv[])
     QemuContext ctx;
     bool verbose = false;
     int port = 4444, snapshot = 0;
-    std::string command(argv[0]);
     std::string instance = QEMU_DEFAULT_INSTANCE;
     std::string bridge = "br0";
     std::string machine = QEMU_DEFAULT_MACHINE;
+    std::string nspace = "/proc/1/ns/net"; // hack since default doesn't exist by default.
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     int mandatory = 0;
 
     std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-instance {default=%s} -bridge {default=%s} -machine {default=%s} -iso cdrom "
-                                         "-drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], instance.c_str(), bridge.c_str(), machine.c_str());
+                                         "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
+                                         "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
+                                         argv[0], instance.c_str(), bridge.c_str(), nspace.c_str(), machine.c_str());
 
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
@@ -98,6 +98,19 @@ int main(int argc, char *argv[])
             QEMU_ephimeral(ctx);
         }
 
+        if (std::string(argv[i]).find("-namespace") != std::string::npos && (i + 1 < argc))
+        {
+            nspace = m3_string_format("/var/run/netns/%s", argv[i + 1]);
+
+            // Check, that namespace eixsts
+            if (!fileExists(nspace.c_str()))
+            {
+                std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
+                std::cout << usage << std::endl;
+                exit(EXIT_FAILURE);
+            }
+        }
+
         if (std::string(argv[i]).find("://") != std::string::npos)
         {
             const std::string delimiter = "://";
@@ -131,6 +144,12 @@ int main(int argc, char *argv[])
                 QEMU_drive(ctx, absdrive, 0);
                 mandatory = 1;
             }
+
+            std::size_t str_hash = std::hash<std::string>{}(instanceid);
+            std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
+            std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
+            
+            QEMU_cloud_init_default(ctx, hostname, instance);
         }
     }
 
@@ -141,16 +160,16 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    QEMU_instance(ctx, instance);
+    QEMU_display(ctx, display);
+    QEMU_machine(ctx, machine);
+    QEMU_notified_started(ctx);
+
     int status = 0;
     pid_t daemon = fork();
     if (daemon == 0)
     {
-        QEMU_instance(ctx, instance);
-        QEMU_display(ctx, display);
-        QEMU_machine(ctx, machine);
-        QEMU_cloud_init_remove(ctx);
-        QEMU_notified_started(ctx);
-
+        QEMU_set_namespace(nspace);
         int bridgeresult = QEMU_allocate_bridge(bridge);
         if (bridgeresult == 1)
         {
@@ -160,6 +179,8 @@ int main(int argc, char *argv[])
         QEMU_link_up(bridge);
         std::string tapdevice = QEMU_allocate_tun(ctx);
         QEMU_enslave_interface(bridge, tapdevice);
+        QEMU_set_default_namespace();
+        //std::string tapdevice = QEMU_allocate_macvtap(ctx, "enp2s0");
 
         pid_t child = fork();
         if (child == 0)
@@ -171,7 +192,9 @@ int main(int argc, char *argv[])
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
+                QEMU_set_namespace(nspace);
                 QEMU_delete_link(ctx, tapdevice);
+                QEMU_set_default_namespace();
             }
 
             return EXIT_SUCCESS;
