@@ -38,7 +38,7 @@ enum QEMU_DISPLAY
 #define QEMU_DEFAULT_IMG "/usr/bin/qemu-img"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
 #define QEMU_DEFAULT_INSTANCE "t1-small"
-#define QEMU_DEFAULT_MACHINE "q35"
+#define QEMU_DEFAULT_MACHINE "ubuntu-q35"
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
 #define QEMU_DEFAULT_REDIS "10.0.94.254"
 
@@ -150,6 +150,12 @@ void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string in
  */
 void QEMU_cloud_init_remove(QemuContext &ctx);
 
+/**
+ * QEMU_cloud_init_default
+  * serial=ds=None
+ */
+void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid);
+
 bool fileExists(const std::string &filename);
 
 /**
@@ -162,5 +168,10 @@ pid_t QEMU_get_pid(QemuContext &ctx);
  * generateRandomPrefixedString(std::string prefix, int length)
  */
 std::string generateRandomPrefixedString(std::string prefix, int length);
+
+/**
+ * generatePrefixedUniqueString(std::string prefix, int length)
+ */
+std::string generatePrefixedUniqueString(std::string prefix, std::size_t hash, unsigned int length);
 
 #endif
