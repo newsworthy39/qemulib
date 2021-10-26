@@ -1,6 +1,9 @@
 #include <qemu-images.hpp>
 
 std::vector<std::tuple<std::string, std::string>> drives{
-        {"dhcp-", "guest-cloud-dhcp-test"},
-        {"webserver-", "ubuntu2004backingfile"}
+        {"meta-", "ubuntu2004backingfile"},
+        {"vip-", "ubuntu2004backingfile"},
+        {"test-", "ubuntu2004backingfile"},
+        {"ubuntu2004-master", "ubuntu2004backingfile"},
+        {"ubuntu2004-", "ubuntu2004-master"}
 };
