@@ -1,12 +1,12 @@
 { "execute": "qmp_capabilities" }
-{ "execute": "drive-mirror", "arguments": { "device": "blockdev", "job-id": "job10", "target": "/mnt/faststorage/vms/q-drive.cow2", "sync": "full", "mode": "absolute-paths" } }
+{ "execute": "drive-mirror", "arguments": { "device": "blockdev", "job-id": "job10", "target": "/home/gandalf-vms/q-drive.cow2", "sync": "full", "mode": "absolute-paths" } }
 { "execute": "query-block-jobs" }
 
 
 
 
 
-{'execute':'blockdev-create','arguments':{'options': {'driver':'file','filename':'/mnt/faststorage/vms/q.cow2','size':21474836480},'job-id':'job1'}}
+{'execute':'blockdev-create','arguments':{'options': {'driver':'file','filename':'/home/gandalf-vms/q.cow2','size':21474836480},'job-id':'job1'}}
 {'execute':'blockdev-add','arguments':{'driver':'file','node-name':'drive_sn1','filename':'/root/sn1'}}
 {'execute':'blockdev-create','arguments':{'options': {'cluster-size':4096, 'driver': 'qcow2','file':'drive_sn1','size':21474836480},'job-id':'job2'}}
 {'execute':'blockdev-add','arguments':{'driver':'qcow2','node-name':'sn1','file':'drive_sn1'}}

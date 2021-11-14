@@ -137,7 +137,7 @@ std::string QEMU_reservation_id(QemuContext &ctx)
     {
         std::string id = m2_generate_uuid_v4();
         PushArguments(ctx, "-name", id);
-        std::cout << "Using name: " << id << std::endl;
+        std::cout << "Using reservation-id: " << id << std::endl;
         return id;
     }
 }
@@ -171,6 +171,11 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
     PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestid.c_str()));
     PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server,nowait", guestid.c_str()));
+
+    // This is the QEMU GUEST AGENT
+    PushArguments(ctx, "-chardev", m2_string_format("socket,path=/tmp/qga-%s.socket,server,nowait,id=qga0", guestid.c_str()));
+    PushArguments(ctx, "-device", "virtio-serial");
+    PushArguments(ctx, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0");
 
     for (auto it = instancemodels.begin(); it != instancemodels.end(); it++)
     {
@@ -296,7 +301,7 @@ void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backin
  */
 void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
 {
-    std::string drive = m2_string_format("/mnt/faststorage/vms/%s.img", id.c_str());
+    std::string drive = m2_string_format("/home/gandalf-vms/%s.img", id.c_str());
     if (!(fileExists(drive) || fileExists(backingfilepath))) // demorgan.
     {
         std::cerr << "One of the arguments file, isn't present." << std::endl;

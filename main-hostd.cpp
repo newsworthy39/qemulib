@@ -9,7 +9,7 @@ std::string username = "redis";
 std::string password = "foobared";
 std::string topic = hostd_generate_client_name();
 std::string bridge = "br0";
-std::string nspace = "/var/run/netns/default";
+std::string nspace = "/proc/1/ns/net";
 std::string cloud_init = "None";
 
 std::vector<QemuContext> reservations;
@@ -221,11 +221,17 @@ void onLaunchMessage(json11::Json::object arguments)
 
     // TODO: We probably, need some sort of library handling here.
     QemuContext ctx;
-    QEMU_allocate_backed_drive(m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()), 32, "/mnt/faststorage/vms/ubuntu2004backingfile.img");
-    if (-1 == QEMU_drive(ctx, m3_string_format("/mnt/faststorage/vms/%s.img", arn.c_str()) , 0) )
+    QEMU_allocate_backed_drive(m3_string_format("/home/gandalf-vms/%s.img", arn.c_str()), 32, "/home/gandalf-vms/ubuntu2004backingfile.img");
+    if (-1 == QEMU_drive(ctx, m3_string_format("/home/gandalf-vms/%s.img", arn.c_str()), 0))
     {
         return;
     }
+
+    std::size_t str_hash = std::hash<std::string>{}(arn);
+    std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
+    std::string instanceid = generatePrefixedUniqueString("i", str_hash, 32);
+
+    QEMU_cloud_init_default(ctx, hostname, instanceid);
 
     QEMU_instance(ctx, instance);
     QEMU_display(ctx, QEMU_DISPLAY::VNC);
@@ -233,23 +239,14 @@ void onLaunchMessage(json11::Json::object arguments)
 
     /**
      * If -snapshot, was provided, then
-     * we make a snapshot 
+     * we make a snapshot
      */
     if (snpshot)
     {
         QEMU_ephimeral(ctx);
     }
 
-    if (!cloud_init.compare("None"))
-    {
-        QEMU_cloud_init_arguments(ctx, cloud_init);
-    }
-    else
-    {
-        QEMU_cloud_init_remove(ctx);
-    }
-
-    //std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
+    // std::string tapname = QEMU_allocate_macvtap(ctx, "enp2s0");
     QEMU_set_namespace(nspace);
     int bridge_result = QEMU_allocate_bridge(bridge);
     if (bridge_result != 0)
@@ -276,8 +273,8 @@ void onLaunchMessage(json11::Json::object arguments)
     {
 
         /**
-     * We store, the uuid, for the possibility, to query the process (threaded)
-     */
+         * We store, the uuid, for the possibility, to query the process (threaded)
+         */
         reservations.push_back(ctx);
         std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(ctx).c_str());
         broadcastMessage("reply-" + topic, confirmation);
@@ -295,7 +292,7 @@ void onLaunchMessage(json11::Json::object arguments)
             QEMU_set_default_namespace();
 
             /**
-             * Finally we clean up the reservation 
+             * Finally we clean up the reservation
              */
             auto it = std::find_if(reservations.begin(), reservations.end(), [&ctx](QemuContext &ct)
                                    { return (QEMU_reservation_id(ct) == QEMU_reservation_id(ctx)); });

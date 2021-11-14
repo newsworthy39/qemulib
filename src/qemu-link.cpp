@@ -292,7 +292,7 @@ int set_if_flags(const char *ifname, short flags)
     }
     else
     {
-        printf("Interface '%s': flags set to %04X.\n", ifname, flags);
+        std::cout << "Interface " << ifname << ": flags set to " << flags << std::endl;
     }
 out:
     return res;
