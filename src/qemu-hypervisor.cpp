@@ -301,7 +301,7 @@ void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backin
  */
 void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
 {
-    std::string drive = m2_string_format("/home/gandalf-vms/%s.img", id.c_str());
+    std::string drive = m2_string_format("/home/gandalf/vms/%s.img", id.c_str());
     if (!(fileExists(drive) || fileExists(backingfilepath))) // demorgan.
     {
         std::cerr << "One of the arguments file, isn't present." << std::endl;

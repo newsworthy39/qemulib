@@ -221,8 +221,8 @@ void onLaunchMessage(json11::Json::object arguments)
 
     // TODO: We probably, need some sort of library handling here.
     QemuContext ctx;
-    QEMU_allocate_backed_drive(m3_string_format("/home/gandalf-vms/%s.img", arn.c_str()), 32, "/home/gandalf-vms/ubuntu2004backingfile.img");
-    if (-1 == QEMU_drive(ctx, m3_string_format("/home/gandalf-vms/%s.img", arn.c_str()), 0))
+    QEMU_allocate_backed_drive(m3_string_format("/home/gandalf/vms/%s.img", arn.c_str()), 32, "/home/gandalf/vms/ubuntu2004backingfile.img");
+    if (-1 == QEMU_drive(ctx, m3_string_format("/home/gandalf/vms/%s.img", arn.c_str()), 0))
     {
         return;
     }

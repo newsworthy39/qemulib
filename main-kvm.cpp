@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
-            std::string drive = m3_string_format("/home/gandalf-vms/%s.img", argv[i + 1]);
+            std::string drive = m3_string_format("/home/gandalf/vms/%s.img", argv[i + 1]);
             if (!fileExists(drive))
             {
                 QEMU_allocate_drive(drive, 32);
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
             auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
                                    { return instanceid.starts_with(std::get<0>(ct)); });
 
-            std::string absdrive = m3_string_format("/home/gandalf-vms/%s.img", instanceid.c_str());
+            std::string absdrive = m3_string_format("/home/gandalf/vms/%s.img", instanceid.c_str());
 
             if (it != drives.end())
             {
@@ -128,7 +128,7 @@ int main(int argc, char *argv[])
 
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_backed_drive(absdrive, 32, m3_string_format("/home/gandalf-vms/%s.img", backingdrive.c_str()));
+                    QEMU_allocate_backed_drive(absdrive, 32, m3_string_format("/home/gandalf/vms/%s.img", backingdrive.c_str()));
                 }
 
                 QEMU_drive(ctx, absdrive, 0);
