@@ -4,7 +4,7 @@ LDFLAGS = -lnl-route-3 -lnl-3
 HOSTLDFLAGS = ${LDFLAGS} -lhiredis -levent -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3
 CXX=g++ -std=c++2a ${INC}
-PACKAGES=qemu-kvm qemu-hostd qemu-launch qemu-stop qemu-reboot qemu-reservations
+PACKAGES=qemu-bridge qemu-tap qemu-hostd qemu-launch qemu-stop qemu-reboot qemu-reservations
 BUILDDIR=build
 FLAGS=-o3
 
@@ -27,7 +27,10 @@ qemu-launch: main-launch.o src/qemu-manage.o src/qemu-hypervisor.o libraries/jso
 qemu-hostd: main-hostd.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(HOSTLDFLAGS)
 
-qemu-kvm: main-kvm.o src/qemu-images.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
+qemu-bridge: main-bridge.o src/qemu-images.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
+	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
+
+qemu-tap: main-tap.o src/qemu-images.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o ${BUILDDIR}/$@ $^ $(LDFLAGS)
 
 src/qemu-images.cpp:
