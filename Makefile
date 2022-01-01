@@ -51,7 +51,7 @@ libraries/json11/json11.cpp:
 clean:
 	rm -f *.o ${BUILDDIR}/* src/*.o
 
-install:
+install: clean all
 	cp ${BUILDDIR}/* /home/gandalf/bin
 	
 uninstall:

@@ -58,7 +58,6 @@ int main(int argc, char *argv[])
             instance = argv[i + 1];
         }
 
-
         if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
         {
             machine = argv[i + 1];
@@ -149,7 +148,7 @@ int main(int argc, char *argv[])
             std::size_t str_hash = std::hash<std::string>{}(instanceid);
             std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
             std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
-            
+
             QEMU_cloud_init_default(ctx, hostname, instance);
         }
     }
@@ -161,19 +160,17 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    QEMU_instance(ctx, instance);
-    QEMU_display(ctx, display);
-    QEMU_machine(ctx, machine);
-    QEMU_notified_started(ctx);
-
-    int status = 0;
+    
     pid_t daemon = fork();
     if (daemon == 0)
     {
+        QEMU_instance(ctx, instance);
+        QEMU_display(ctx, display);
+        QEMU_machine(ctx, machine);
+        QEMU_notified_started(ctx);
         QEMU_set_namespace(nspace);
         std::string tapdevice = QEMU_allocate_macvtap(ctx, masterinterface);
         QEMU_set_default_namespace();
-        
 
         pid_t child = fork();
         if (child == 0)
@@ -182,6 +179,7 @@ int main(int argc, char *argv[])
         }
         else
         {
+            int status = 0;
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
