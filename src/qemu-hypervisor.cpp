@@ -160,8 +160,6 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 
     std::string guestid = QEMU_reservation_id(ctx);
 
-    PushArguments(ctx, "-device", "virtio-rng-pci"); // random
-    PushArguments(ctx, "-device", "virtio-balloon");
     PushArguments(ctx, "-runas", "gandalf");
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
@@ -392,11 +390,15 @@ void QEMU_ephimeral(QemuContext &ctx)
  * QEMU_launch()
  * This launches a hypervisor.
  */
-void QEMU_launch(QemuContext &args, bool block)
+void QEMU_launch(QemuContext &ctx, bool block)
 {
     // check to daemonize
     if (block == false)
-        PushSingleArgument(args, "-daemonize");
+        PushSingleArgument(ctx, "-daemonize");
+
+    // Allways, add these last
+    PushArguments(ctx, "-device", "virtio-rng-pci"); // random
+    PushArguments(ctx, "-device", "virtio-balloon");
 
     // Finally, we copy it into a char-array, to make it compatible with execvp and run it.
     std::vector<char *> left_argv;
@@ -404,11 +406,11 @@ void QEMU_launch(QemuContext &args, bool block)
     left_argv.push_back(const_cast<char *>("-enable-kvm"));
 
     // First, we take the devices.
-    std::for_each(args.devices.begin(), args.devices.end(), [&left_argv](const std::string &device)
+    std::for_each(ctx.devices.begin(), ctx.devices.end(), [&left_argv](const std::string &device)
                   { left_argv.push_back(const_cast<char *>(device.c_str())); });
 
     // Then we take, the drives in a orderly fasion.
-    std::for_each(args.drives.begin(), args.drives.end(), [&left_argv](const std::string &drive)
+    std::for_each(ctx.drives.begin(), ctx.drives.end(), [&left_argv](const std::string &drive)
                   { left_argv.push_back(const_cast<char *>(drive.c_str())); });
 
     // Next, we copy the darn drives
