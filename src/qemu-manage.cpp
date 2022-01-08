@@ -9,11 +9,11 @@ QEMU_powerdown(std::string &reservationid)
 {
     char buffer[4096]{0};
 
-    int s = QEMU_OpenQGASocketFromPath(reservationid);
+    int s = QEMU_OpenQMPSocketFromPath(reservationid);
 
-    std::string powerdown = "{ \"execute\": \"system_powerdown\" }";
+    std::string powerdown = "{ \"execute\": \"system_powerdown\" }\0";
 
-    int t = send(s, powerdown.c_str(), powerdown.size() + 1, 0);
+    int t = send(s, powerdown.c_str(), powerdown.size(), 0);
     sleep(1);
     int k = recv(s, buffer, 4096, 0);
     if (k != -1)
@@ -34,7 +34,7 @@ void QEMU_reset(std::string &reservationid)
 {
     char buffer[4096]{0};
 
-    int s = QEMU_OpenQGASocketFromPath(reservationid);
+    int s = QEMU_OpenQMPSocketFromPath(reservationid);
 
     std::string reset = "{ \"execute\": \"system_reset\" }";
 

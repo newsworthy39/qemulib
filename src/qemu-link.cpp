@@ -369,15 +369,32 @@ void QEMU_delete_link(QemuContext &ctx, std::string interface)
     nl_close(sk);
 }
 
+/**
+ * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
+ * 
+ * @param ctx QemuContext.
+ * @return int a open socket.
+ */
 int QEMU_OpenQMPSocket(QemuContext &ctx)
+{
+    std::string guestid = QEMU_reservation_id(ctx); // Returns an UUIDv4.
+    return QEMU_OpenQMPSocketFromPath(guestid);
+}
+
+/**
+ * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
+ * 
+ * @param std::string reservationid
+ * @return int a open socket.
+ */
+int QEMU_OpenQMPSocketFromPath(std::string &reservationid)
 {
     // Connect to unix-qmp-socket
     int s, t, len;
     struct sockaddr_un remote;
     char str[4096];
 
-    std::string guestid = QEMU_reservation_id(ctx); // Returns an UUIDv4.
-    std::string str_qmp = m3_string_format("/tmp/%s.socket", guestid.c_str());
+    std::string str_qmp = m3_string_format("/tmp/%s.socket", reservationid.c_str());
 
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
