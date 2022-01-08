@@ -6,5 +6,6 @@
 #include <tuple>
 
 extern std::vector<std::tuple<std::string,std::string>> drives;
+extern std::vector<std::tuple<std::string,std::string>> datastores;
 
 #endif

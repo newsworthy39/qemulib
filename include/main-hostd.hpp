@@ -8,6 +8,7 @@
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
 #include <qemu-manage.hpp>
+#include <qemu-images.hpp>
 
 void onReceiveMessage(redisAsyncContext *c, void *reply, void *privdata);
 std::string hostd_generate_client_name();

@@ -8,5 +8,10 @@ std::vector<std::tuple<std::string, std::string>> drives{
         {"ubuntu2004-master", "ubuntu2004backingfile"},
         {"ubuntu2004-redis-", "ubuntu2004-redis"},
         {"ubuntu2004-redis", "ubuntu2004backingfile"},
-        {"ubuntu2004-", "ubuntu2004-master"},        
+        {"ubuntu2004-", "ubuntu2004-master"}
+};
+
+std::vector<std::tuple<std::string, std::string>> datastores {
+        {"main", "/home/gandalf/vms"},
+        {"fast", "/home/gandalf/fast"}        
 };

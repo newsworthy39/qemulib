@@ -290,6 +290,7 @@ void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backin
 /**
  * QEMU_rebase_backed_drive(std::string id, std::string backingpath)
  * Will rebase image onto a backing-image, but only while offline.
+ * TODO: Make this follow full-path pattern.
  */
 void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
 {
