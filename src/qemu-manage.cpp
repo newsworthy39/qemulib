@@ -48,3 +48,25 @@ void QEMU_reset(QemuContext &ctx)
 
     close(s);
 }
+
+/**
+ * @brief fetches the network configuration from a guest, using
+ * its guestid.
+ *
+ * @param guestid
+ */
+std::string QEMU_interfaces(std::string &guestid)
+{
+    char buffer[4096]{0};
+
+    int s = QEMU_OpenQGASocketFromPath(guestid);
+
+    std::string interfaces = "{ \"execute\": \"guest-network-get-interfaces\" }";
+
+    int t = send(s, interfaces.c_str(), interfaces.size(), 0);
+    sleep(1);
+    recv(s, buffer, 4096, 0);
+    close(s);
+
+    return buffer;
+}

@@ -113,15 +113,9 @@ void PushArguments(QemuContext &ctx, std::string key, std::string value)
     PushSingleArgument(ctx, value);
 }
 
-void PushSingleDriveArgument(QemuContext &ctx, std::string value)
+void PushDriveArgument(QemuContext &ctx, std::string value)
 {
     ctx.drives.push_back(value);
-}
-
-void PushDriveArgument(QemuContext &ctx, std::string key, std::string value)
-{
-    PushSingleDriveArgument(ctx, key);
-    PushSingleDriveArgument(ctx, value);
 }
 
 std::string QEMU_reservation_id(QemuContext &ctx)
@@ -210,7 +204,7 @@ int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootind
     if (fileExists(drive))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, "-drive", m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", bootindex, drive.c_str(), blockdevice.c_str()));
+        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", bootindex, drive.c_str(), blockdevice.c_str()));
         std::cout << "Using drive: " << drive << std::endl;
         return 0;
     }
@@ -410,8 +404,12 @@ void QEMU_launch(QemuContext &ctx, bool block)
                   { left_argv.push_back(const_cast<char *>(device.c_str())); });
 
     // Then we take, the drives in a orderly fasion.
-    std::for_each(ctx.drives.begin(), ctx.drives.end(), [&left_argv](const std::string &drive)
-                  { left_argv.push_back(const_cast<char *>(drive.c_str())); });
+    std::for_each(ctx.drives.rbegin(), ctx.drives.rend(), [&left_argv](const std::string &drive)
+                  { 
+                      
+                      left_argv.push_back(const_cast<char *>("-drive")); 
+                      left_argv.push_back(const_cast<char *>(drive.c_str())); 
+                  });
 
     // Next, we copy the darn drives
     left_argv.push_back(NULL); // leave a null
@@ -441,6 +439,7 @@ void QEMU_notified_exited(QemuContext &ctx)
     std::string str_mon = m2_string_format("/tmp/%s.monitor", guestid.c_str());
     std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
     std::string str_socket = m2_string_format("/tmp/%s.socket", guestid.c_str());
+    std::string str_ga = m2_string_format("/tmp/qga-%s.socket", guestid.c_str());
 
     if (fileExists(str_mon))
     {
@@ -455,6 +454,10 @@ void QEMU_notified_exited(QemuContext &ctx)
     if (fileExists(str_socket))
     {
         unlink(str_socket.c_str());
+    }
+    if (fileExists(str_ga))
+    {
+        unlink(str_ga.c_str());
     }
 }
 

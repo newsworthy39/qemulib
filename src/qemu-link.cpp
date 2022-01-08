@@ -397,3 +397,31 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
     t = recv(s, str, 4096, 0);
     return s;
 }
+
+int QEMU_OpenQGASocketFromPath(std::string &guestid)
+{
+    // Connect to unix-qmp-socket
+    int s, t, len;
+    struct sockaddr_un remote;
+    char str[4096];
+
+    std::string str_qmp = m3_string_format("/tmp/qga-%s.socket", guestid.c_str());
+
+    if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
+    {
+        perror("socket");
+        exit(EXIT_FAILURE); 
+    }
+
+    remote.sun_family = AF_UNIX;
+    strcpy(remote.sun_path, str_qmp.c_str());
+    len = strlen(remote.sun_path) + sizeof(remote.sun_family);
+    if (connect(s, (struct sockaddr *)&remote, len) == -1)
+    {
+        std::cerr << "Could not connect to QMP-socket: " << str_qmp << std::endl;
+        exit(EXIT_FAILURE);
+    }
+    // t = send(s, "{ \"execute\": \"qmp_capabilities\"} ", strlen("{ \"execute\": \"qmp_capabilities\"} "), 0);
+    // t = recv(s, str, 4096, 0);
+    return s;
+}

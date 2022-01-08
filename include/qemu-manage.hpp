@@ -8,5 +8,6 @@
 void QEMU_powerdown(QemuContext &ctx);
 void QEMU_kill(QemuContext &ctx);
 void QEMU_reset(QemuContext &ctx);
+std::string QEMU_interfaces(std::string &guestid);
 
 #endif

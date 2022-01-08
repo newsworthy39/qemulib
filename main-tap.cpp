@@ -186,6 +186,7 @@ int main(int argc, char *argv[])
                 QEMU_set_namespace(nspace);
                 QEMU_delete_link(ctx, tapdevice);
                 QEMU_set_default_namespace();
+                QEMU_notified_exited(ctx);
             }
 
             return EXIT_SUCCESS;

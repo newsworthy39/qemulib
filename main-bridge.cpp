@@ -28,6 +28,7 @@ int main(int argc, char *argv[])
     std::string nspace = "/proc/1/ns/net"; // hack since default doesn't exist by default.
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     int mandatory = 0;
+    int driveid = 1;
 
     std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
@@ -82,7 +83,7 @@ int main(int argc, char *argv[])
                 QEMU_allocate_drive(drive, 32);
             }
 
-            if (-1 == QEMU_drive(ctx, drive, 1))
+            if (-1 == QEMU_drive(ctx, drive, driveid++))
             {
                 exit(EXIT_FAILURE);
             }
@@ -131,17 +132,17 @@ int main(int argc, char *argv[])
                     QEMU_allocate_backed_drive(absdrive, 32, m3_string_format("/home/gandalf/vms/%s.img", backingdrive.c_str()));
                 }
 
-                QEMU_drive(ctx, absdrive, 0);
+                QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
 
                 mandatory = 1;
             }
-            else
+            else // if backing-file was found, simply blank a 32G drive.
             {
                 if (!fileExists(absdrive))
                 {
                     QEMU_allocate_drive(absdrive, 32);
                 }
-                QEMU_drive(ctx, absdrive, 0);
+                QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
                 mandatory = 1;
             }
 
@@ -193,6 +194,7 @@ int main(int argc, char *argv[])
                 QEMU_set_namespace(nspace);
                 QEMU_delete_link(ctx, tapdevice);
                 QEMU_set_default_namespace();
+                QEMU_notified_exited(ctx);
             }
 
             return EXIT_SUCCESS;
