@@ -102,9 +102,10 @@ void onResetMessage(json11::Json::object arguments)
 
     if (it != reservations.end())
     {
-        QEMU_powerdown(*it);
+        std::string reservationid = QEMU_reservation_id(*it);
+        QEMU_powerdown(reservationid);
 
-        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(*it).c_str());
+        std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", reservationid.c_str());
 
         broadcastMessage(reply, confirmation);
     }
@@ -135,7 +136,8 @@ void onPowerdownMessage(json11::Json::object arguments)
 
     if (ctx != reservations.end())
     {
-        force == 0 ? QEMU_powerdown(*ctx) : QEMU_kill(*ctx);
+        std::string reservationid = QEMU_reservation_id(*ctx);
+        force == 0 ? QEMU_powerdown(reservationid) : QEMU_kill(reservationid);
 
         std::string confirmation = m3_string_format("{ \"uuidv4\": \"%s\" }", QEMU_reservation_id(*ctx).c_str());
 

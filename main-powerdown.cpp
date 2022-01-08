@@ -1,5 +1,5 @@
 
-#include <qemu-interfaces.hpp>
+#include <qemu-powerdown.hpp>
 
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)
@@ -19,11 +19,11 @@ int main(int argc, char *argv[])
 {
     bool verbose = false;
     std::string topic = "";
-    std::string instance = "";
-    int force = 0;
+    std::string reservation = "";
+    bool force = false;
 
-    std::string usage = m3_string_format("usage(): %s (-help) reservation://%s",
-                                          argv[0], instance.c_str());
+    std::string usage = m3_string_format("usage(): %s (-help) (-force) reservation://%s",
+                                           argv[0], reservation.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -39,24 +39,34 @@ int main(int argc, char *argv[])
             verbose = true;
         }
 
+         if (std::string(argv[i]).find("-force") != std::string::npos)
+        {
+            force = true;
+        }
+
         if (std::string(argv[i]).find("://") != std::string::npos)
         {
             const std::string delimiter = "://";
-            instance = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
         }
     }
-
-    if (instance.empty())
+    
+    if (reservation.empty())
     {
-        std::cerr << "Error: ARN not supplied" << std::endl;
+        std::cerr << "Error: reservation not supplied" << std::endl;
         std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }
 
-    std::string error;
-    json11::Json json = json11::Json::parse(QEMU_interfaces(instance), error);
+    std::cout << "Using reservation " << reservation ;
 
-    std::cout << json["return"].dump() << std::endl;
+    if (!force) {
+        std::cout << " without force " << std::endl;
+        QEMU_powerdown(reservation);
+    } else {
+        std::cout << " with force " << std::endl;
+        QEMU_kill(reservation);
+    }
 
     return EXIT_SUCCESS;
 }

@@ -506,10 +506,9 @@ void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string
  * QEMU_get_pid
  * get pid of running hypervisor.
  */
-pid_t QEMU_get_pid(QemuContext &ctx)
+pid_t QEMU_get_pid(std::string &reservationid )
 {
-    std::string guestid = QEMU_reservation_id(ctx);
-    std::string str_pid = m2_string_format("/tmp/%s.pid", guestid.c_str());
+    std::string str_pid = m2_string_format("/tmp/%s.pid", reservationid.c_str());
     pid_t pid;
     std::ifstream pidfile;
     pidfile.open(str_pid.c_str());

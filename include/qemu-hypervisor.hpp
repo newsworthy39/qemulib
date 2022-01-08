@@ -162,7 +162,7 @@ bool fileExists(const std::string &filename);
  * QEMU_get_pid
  * get pid of running hypervisor.
  */
-pid_t QEMU_get_pid(QemuContext &ctx);
+pid_t QEMU_get_pid(std::string &reservationid);
 
 /**
  * generateRandomPrefixedString(std::string prefix, int length)

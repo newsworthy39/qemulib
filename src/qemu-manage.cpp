@@ -4,11 +4,12 @@
  * QEMU_powerdown(QemuContext)
  * Powers down the QEMU instance, by sending a message via the QMP-socket
  */
-void QEMU_powerdown(QemuContext &ctx)
+void 
+QEMU_powerdown(std::string &reservationid)
 {
     char buffer[4096]{0};
 
-    int s = QEMU_OpenQMPSocket(ctx);
+    int s = QEMU_OpenQGASocketFromPath(reservationid);
 
     std::string powerdown = "{ \"execute\": \"system_powerdown\" }";
 
@@ -23,18 +24,17 @@ void QEMU_powerdown(QemuContext &ctx)
     close(s);
 }
 
-void QEMU_kill(QemuContext &ctx)
+void QEMU_kill(std::string &reservationid)
 {
-    pid_t pid = QEMU_get_pid(ctx);
+    pid_t pid = QEMU_get_pid(reservationid);
     kill(pid, SIGTERM);
 }
 
-void QEMU_reset(QemuContext &ctx)
+void QEMU_reset(std::string &reservationid)
 {
-
     char buffer[4096]{0};
 
-    int s = QEMU_OpenQMPSocket(ctx);
+    int s = QEMU_OpenQGASocketFromPath(reservationid);
 
     std::string reset = "{ \"execute\": \"system_reset\" }";
 
@@ -55,11 +55,11 @@ void QEMU_reset(QemuContext &ctx)
  *
  * @param guestid
  */
-std::string QEMU_interfaces(std::string &guestid)
+std::string QEMU_interfaces(std::string &reservationid)
 {
     char buffer[4096]{0};
 
-    int s = QEMU_OpenQGASocketFromPath(guestid);
+    int s = QEMU_OpenQGASocketFromPath(reservationid);
 
     std::string interfaces = "{ \"execute\": \"guest-network-get-interfaces\" }";
 
@@ -70,3 +70,4 @@ std::string QEMU_interfaces(std::string &guestid)
 
     return buffer;
 }
+

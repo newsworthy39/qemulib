@@ -55,6 +55,7 @@
         "typeinfo": "cpp",
         "codecvt": "cpp",
         "iomanip": "cpp",
-        "set": "cpp"
+        "set": "cpp",
+        "complex": "cpp"
     }
 }
