@@ -1,4 +1,7 @@
-global:
+globals:
   language: da
   default_instance: t1-small
   default_machine: q35
+  default_bridge: br0
+  default_netspace: "/proc/1/ns/net"
+  default_bridge_cidr: 10.0.96.1/24

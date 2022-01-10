@@ -44,16 +44,16 @@ int main(int argc, char *argv[])
     };
 
     QemuContext ctx;
-    bool verbose = false;
     int port = 4444, snapshot = 0, mandatory = 0, driveid = 1;
+    QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
     std::string instance = globals<std::string>(config, "globals", "default_instance", QEMU_DEFAULT_INSTANCE);
-    std::string bridge = "br0";
     std::string machine = globals<std::string>(config, "globals", "default_machine", QEMU_DEFAULT_MACHINE);
-    std::string nspace = "/proc/1/ns/net"; // hack since default doesn't exist by default.
-    QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
+    std::string bridge = globals<std::string>(config, "globals", "default_bridge", QEMU_DEFAULT_BRIDGE);
+    std::string nspace = globals<std::string>(config, "globals", "default_netspace", QEMU_DEFAULT_NETSPACE);
+    std::string brdgecidr = globals<std::string>(config, "globals", "default_bridge_cidr", QEMU_DEFAULT_NETWORK);
 
-    std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
+    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
                                          "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], instance.c_str(), bridge.c_str(), nspace.c_str(), machine.c_str());
@@ -65,11 +65,6 @@ int main(int argc, char *argv[])
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
-        }
-
-        if (std::string(argv[i]).find("-v") != std::string::npos)
-        {
-            verbose = true;
         }
 
         if (std::string(argv[i]).find("-headless") != std::string::npos)
@@ -228,12 +223,21 @@ int main(int argc, char *argv[])
         QEMU_notified_started(ctx);
         QEMU_set_namespace(nspace);
         int bridgeresult = QEMU_allocate_bridge(bridge);
-        if (bridgeresult == 1)
+        if (bridgeresult == 0)
+        {
+            QEMU_link_up(bridge);
+
+            if (brdgecidr.starts_with(QEMU_get_interface_cidr(bridge)))
+            {
+                QEMU_set_interface_cidr(bridge, brdgecidr);
+            }
+        }
+        else
         {
             std::cerr << "Bridge allocation error." << std::endl;
             exit(EXIT_FAILURE);
         }
-        QEMU_link_up(bridge);
+
         std::string tapdevice = QEMU_allocate_tun(ctx);
         QEMU_enslave_interface(bridge, tapdevice);
         QEMU_set_default_namespace();

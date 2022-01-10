@@ -17,9 +17,16 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
+template <class type>
+type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
+{
+    YAML::Node global = configuration[section];
+    return global[key].as<type>();
+}
+
 int main(int argc, char *argv[])
 {
-     std::vector<std::tuple<std::string, std::string>> drives{
+    std::vector<std::tuple<std::string, std::string>> drives{
         {"meta-", "ubuntu2004backingfile"},
         {"vip-", "ubuntu2004backingfile"},
         {"test-", "ubuntu2004backingfile"},
@@ -37,17 +44,17 @@ int main(int argc, char *argv[])
     };
 
     QemuContext ctx;
-    bool verbose = false;
-    int port = 4444, snapshot = 0;
-    std::string instance = QEMU_DEFAULT_INSTANCE;
-    std::string machine = QEMU_DEFAULT_MACHINE;
+    int port = 4444, snapshot = 0, mandatory = 0, driveid = 1;
     std::string masterinterface = "enp2s0";
-    std::string nspace = "/proc/1/ns/net"; // hack since default doesn't exist by default.
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
-    int mandatory = 0;
-    int driveid = 1;
 
-    std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
+    YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
+    std::string instance = globals<std::string>(config, "globals", "default_instance", QEMU_DEFAULT_INSTANCE);
+    std::string machine = globals<std::string>(config, "globals", "default_machine", QEMU_DEFAULT_MACHINE);
+    std::string bridge = globals<std::string>(config, "globals", "default_bridge", QEMU_DEFAULT_BRIDGE); 
+    std::string nspace = globals<std::string>(config, "globals", "default_netspace", QEMU_DEFAULT_NETSPACE);
+
+    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-instance {default=%s} -namespace {default=%s} -machine {default=%s} "
                                          "-iso cdrom -tapmaster {default=%s} -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], instance.c_str(), nspace.c_str(), machine.c_str(), masterinterface.c_str());
@@ -60,12 +67,7 @@ int main(int argc, char *argv[])
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
         }
-
-        if (std::string(argv[i]).find("-v") != std::string::npos)
-        {
-            verbose = true;
-        }
-
+        
         if (std::string(argv[i]).find("-headless") != std::string::npos)
         {
             display = QEMU_DISPLAY::VNC;
@@ -89,22 +91,21 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-iso") != std::string::npos && (i + 1 < argc))
         {
 
-             // This allows us, to use different datastores, following this idea
+            // This allows us, to use different datastores, following this idea
             // -drive main:test-something-2.
             std::string datastore = std::get<1>(datastores.back());
             std::string drivename = std::string(argv[i + 1]);
             const std::string delimiter = ":";
 
-            if (drivename.find(delimiter) != std::string::npos) {                    
-                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter) ); // remove the drivename-part.
-                drivename = drivename.substr(drivename.find(delimiter) + 1 ); // remove, the datastore-part.
+            if (drivename.find(delimiter) != std::string::npos)
+            {
+                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
+                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
 
                 auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
-                                   { return dtidentifier.starts_with(std::get<0>(ct) ) ; 
-                                   });
+                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
 
                 datastore = std::get<1>(*it);
-
             }
 
             std::string drive = m3_string_format("%s/%s.iso", datastore.c_str(), drivename.c_str());
@@ -120,16 +121,15 @@ int main(int argc, char *argv[])
             std::string drivename = std::string(argv[i + 1]);
             const std::string delimiter = ":";
 
-            if (drivename.find(delimiter) != std::string::npos) {                    
-                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter) ); // remove the drivename-part.
-                drivename = drivename.substr(drivename.find(delimiter) + 1 ); // remove, the datastore-part.
+            if (drivename.find(delimiter) != std::string::npos)
+            {
+                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
+                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
 
                 auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
-                                   { return dtidentifier.starts_with(std::get<0>(ct) ) ; 
-                                   });
+                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
 
                 datastore = std::get<1>(*it);
-
             }
 
             std::string drive = m3_string_format("%s/%s.img", datastore.c_str(), drivename.c_str());
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
             auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
                                    { return instanceid.starts_with(std::get<0>(ct)); });
 
-            std::string absdrive = m3_string_format("%s/%s.img",std::get<1>(datastores.front()).c_str(), instanceid.c_str());
+            std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), instanceid.c_str());
 
             if (it != drives.end())
             {
@@ -216,7 +216,6 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    
     pid_t daemon = fork();
     if (daemon == 0)
     {

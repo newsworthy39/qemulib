@@ -179,7 +179,7 @@ int QEMU_tun_allocate(const std::string device)
     memset(&ifr, 0, sizeof(ifr));
 
     /* request a tap device, disable PI, and add vnet header support if
-     * requested and it's available. 
+     * requested and it's available.
     /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
      *        IFF_TAP   - TAP device
      *
@@ -268,11 +268,12 @@ void QEMU_enslave_interface(std::string bridge, std::string interface)
     nl_close(sock);
 }
 
-int skfd = -1; /* AF_INET socket for ioctl() calls.*/
+
 int set_if_flags(const char *ifname, short flags)
 {
     struct ifreq ifr;
     int res = 0;
+    int skfd = -1; /* AF_INET socket for ioctl() calls.*/
 
     ifr.ifr_flags = flags;
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
@@ -296,6 +297,82 @@ int set_if_flags(const char *ifname, short flags)
     }
 out:
     return res;
+}
+
+std::string QEMU_get_interface_cidr(const std::string device)
+{
+    struct ifreq ifr;
+    int res = 0;
+    int skfd = -1; /* AF_INET socket for ioctl() calls.*/
+    
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        printf("socket error %s\n", strerror(errno));
+        res = 1;
+    }
+
+    /* I want to get an IPv4 IP address */
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    /* I want IP address attached to "eth0" */
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ - 1);
+
+    ioctl(skfd, SIOCGIFADDR, &ifr);
+
+    close(skfd);
+
+    /* display result */
+    std::string ip = inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+
+    return ip;
+}
+
+/**
+ * @brief QEMU_set_interface_cidr
+ * Sets the network cidr. Also. Its shit. Never mind.
+ *
+ * @param name the interface.
+ * @param cidr the cidr.
+ */
+void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
+{
+
+    std::string net;
+    std::string address = cidr.substr(0, cidr.find("/"));
+    std::string netmask = cidr.substr(cidr.find("/") + 1);
+    if (netmask == "24")
+    {
+        net = "255.255.255.0";
+    }
+    if (netmask == "16")
+    {
+        net = "255.255.0.0";
+    }
+    if (netmask == "8")
+    {
+        net = "255.0.0.0";
+    }
+
+    struct ifreq ifr;
+    int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
+
+    ifr.ifr_addr.sa_family = AF_INET;
+    struct sockaddr_in *addr = (struct sockaddr_in *)&ifr.ifr_addr;
+    inet_pton(AF_INET, address.c_str(), &addr->sin_addr);
+    ioctl(fd, SIOCSIFADDR, &ifr);
+
+    inet_pton(AF_INET, net.c_str(), &addr->sin_addr);
+    ioctl(fd, SIOCSIFNETMASK, &ifr);
+
+    ioctl(fd, SIOCGIFFLAGS, &ifr);
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
+    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
+
+    ioctl(fd, SIOCSIFFLAGS, &ifr);
 }
 
 int QEMU_link_up(const std::string ifname)
@@ -371,7 +448,7 @@ void QEMU_delete_link(QemuContext &ctx, std::string interface)
 
 /**
  * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
- * 
+ *
  * @param ctx QemuContext.
  * @return int a open socket.
  */
@@ -383,7 +460,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
 
 /**
  * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
- * 
+ *
  * @param std::string reservationid
  * @return int a open socket.
  */
@@ -399,7 +476,7 @@ int QEMU_OpenQMPSocketFromPath(std::string &reservationid)
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         perror("socket");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
     remote.sun_family = AF_UNIX;
@@ -427,7 +504,7 @@ int QEMU_OpenQGASocketFromPath(std::string &guestid)
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         perror("socket");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
     remote.sun_family = AF_UNIX;

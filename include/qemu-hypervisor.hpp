@@ -40,7 +40,9 @@ enum QEMU_DISPLAY
 #define QEMU_DEFAULT_INSTANCE "t1-small"
 #define QEMU_DEFAULT_MACHINE "ubuntu-q35"
 #define QEMU_DEFAULT_INTERFACE "default/macvtap"
-#define QEMU_DEFAULT_REDIS "10.0.94.254"
+#define QEMU_DEFAULT_NETSPACE "/proc/1/ns/net"
+#define QEMU_DEFAULT_BRIDGE "br0"
+#define QEMU_DEFAULT_NETWORK "10.0.96.1/24"
 
 /** Stack functions */
 void PushSingleArgument(QemuContext &args, std::string value);
