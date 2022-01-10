@@ -1,7 +1,7 @@
 #include <iostream>
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
-#include <qemu-images.hpp>
+#include <yaml-cpp/yaml.h>
 
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)
@@ -17,18 +17,41 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
+template <class type>
+type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
+{
+    YAML::Node global = configuration[section];
+    return global[key].as<type>();
+}
+
 int main(int argc, char *argv[])
 {
+    std::vector<std::tuple<std::string, std::string>> drives{
+        {"meta-", "ubuntu2004backingfile"},
+        {"vip-", "ubuntu2004backingfile"},
+        {"test-", "ubuntu2004backingfile"},
+
+        {"ubuntu2004-master", "ubuntu2004backingfile"},
+        {"ubuntu2004-", "ubuntu2004-master"},
+        {"hippogrif-", "test-ubuntu2004-hippogrif"},
+
+    };
+
+    std::vector<std::tuple<std::string, std::string>> datastores{
+        {"main", "/home/gandalf/vms"},
+        {"cold", "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"},
+        {"iso", "/home/gandalf/Downloads/Applications"},
+    };
+
     QemuContext ctx;
     bool verbose = false;
-    int port = 4444, snapshot = 0;
-    std::string instance = QEMU_DEFAULT_INSTANCE;
+    int port = 4444, snapshot = 0, mandatory = 0, driveid = 1;
+    YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
+    std::string instance = globals<std::string>(config, "globals", "default_instance", QEMU_DEFAULT_INSTANCE);
     std::string bridge = "br0";
-    std::string machine = QEMU_DEFAULT_MACHINE;
+    std::string machine = globals<std::string>(config, "globals", "default_machine", QEMU_DEFAULT_MACHINE);
     std::string nspace = "/proc/1/ns/net"; // hack since default doesn't exist by default.
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
-    int mandatory = 0;
-    int driveid = 1;
 
     std::string usage = m3_string_format("usage(): %s (-help) (-verbose) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
@@ -71,13 +94,48 @@ int main(int argc, char *argv[])
 
         if (std::string(argv[i]).find("-iso") != std::string::npos && (i + 1 < argc))
         {
-            std::string drive = m3_string_format("/home/gandalf/Downloads/Applications/%s.iso", argv[i + 1]);
+
+            // This allows us, to use different datastores, following this idea
+            // -drive main:test-something-2.
+            std::string datastore = std::get<1>(datastores.back());
+            std::string drivename = std::string(argv[i + 1]);
+            const std::string delimiter = ":";
+
+            if (drivename.find(delimiter) != std::string::npos)
+            {
+                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
+                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
+
+                auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
+                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
+
+                datastore = std::get<1>(*it);
+            }
+
+            std::string drive = m3_string_format("%s/%s.iso", datastore.c_str(), drivename.c_str());
             QEMU_iso(ctx, drive);
         }
 
         if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
         {
-            std::string drive = m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), argv[i + 1]);
+            // This allows us, to use different datastores, following this idea
+            // -drive main:test-something-2.
+            std::string datastore = std::get<1>(datastores.front());
+            std::string drivename = std::string(argv[i + 1]);
+            const std::string delimiter = ":";
+
+            if (drivename.find(delimiter) != std::string::npos)
+            {
+                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
+                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
+
+                auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
+                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
+
+                datastore = std::get<1>(*it);
+            }
+
+            std::string drive = m3_string_format("%s/%s.img", datastore.c_str(), drivename.c_str());
             if (!fileExists(drive))
             {
                 QEMU_allocate_drive(drive, 32);

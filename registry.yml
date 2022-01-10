@@ -1,0 +1,4 @@
+global:
+  language: da
+  default_instance: t1-small
+  default_machine: q35

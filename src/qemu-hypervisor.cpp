@@ -221,6 +221,11 @@ int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootind
  */
 void QEMU_allocate_drive(std::string path, ssize_t sz)
 {
+    if (!fileExists(QEMU_DEFAULT_IMG)) {
+        std::cerr << QEMU_DEFAULT_IMG << " is missing" << std::endl;
+        exit(-1);
+    }
+
     if (fileExists(path))
     {
         return;
@@ -387,6 +392,11 @@ void QEMU_ephimeral(QemuContext &ctx)
  */
 void QEMU_launch(QemuContext &ctx, bool block)
 {
+    if (!fileExists(QEMU_DEFAULT_SYSTEM)) {
+        std::cerr << QEMU_DEFAULT_SYSTEM << " is missing." << std::endl;
+        exit(-1);
+    }
+    
     // check to daemonize
     if (block == false)
         PushSingleArgument(ctx, "-daemonize");
