@@ -83,13 +83,13 @@ void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
  * QEMU_allocate_backed_drive(std::string id, ssize_t sz,  std::string backingid,)
  * Will create a new image, but refuse to overwrite old ones, based on a backing id
  */
-void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile);
+void QEMU_allocate_backed_drive(std::string id, std::string sz, std::string backingfile);
 
 /**
  * QEMU_allocate_drive(std::string id, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_drive(std::string id, ssize_t sz);
+void QEMU_allocate_drive(std::string id, std::string sz);
 
 /**
  * QEMU_rebase_backed_drive(std::string id, std::string backingpath)

@@ -24,22 +24,43 @@ type globals(YAML::Node &configuration, std::string section, std::string key, ty
     return global[key].as<type>();
 }
 
+std::vector<std::tuple<std::string, std::string>> loadstores(YAML::Node &config)
+{
+    YAML::Node node = config["datastores"];
+    std::vector<std::tuple<std::string, std::string>> datastores;
+    if (node.Type() == YAML::NodeType::Sequence)
+    {
+        for (std::size_t i = 0; i < node.size(); i++)
+        {
+            if (node.Type() == YAML::NodeType::Sequence)
+            {
+                YAML::Node seq = node[i];
+                for (std::size_t j = 0; j < seq.size(); j++)
+                {
+                    for (YAML::const_iterator it = seq.begin(); it != seq.end(); ++it)
+                    {
+                        datastores.push_back(std::make_tuple<std::string, std::string>(it->first.as<std::string>(), it->second.as<std::string>()));
+                    }
+                }
+            }
+        }
+    }
+    return datastores;
+}
+
 int main(int argc, char *argv[])
 {
     std::vector<std::tuple<std::string, std::string>> drives{
         {"meta-", "ubuntu2004backingfile"},
         {"vip-", "ubuntu2004backingfile"},
         {"test-", "ubuntu2004backingfile"},
-
         {"ubuntu2004-master", "ubuntu2004backingfile"},
         {"ubuntu2004-", "ubuntu2004-master"},
         {"hippogrif-", "test-ubuntu2004-hippogrif"},
-
     };
 
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", "/home/gandalf/vms"},
-        {"cold", "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"},
         {"iso", "/home/gandalf/Downloads/Applications"},
     };
 
@@ -52,6 +73,15 @@ int main(int argc, char *argv[])
     std::string bridge = globals<std::string>(config, "globals", "default_bridge", QEMU_DEFAULT_BRIDGE);
     std::string nspace = globals<std::string>(config, "globals", "default_netspace", QEMU_DEFAULT_NETSPACE);
     std::string brdgecidr = globals<std::string>(config, "globals", "default_bridge_cidr", QEMU_DEFAULT_NETWORK);
+    std::string disksize = globals<std::string>(config, "globals", "default_disk_size", "32g");
+    std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
+    std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
+
+    std::vector<std::tuple<std::string, std::string>> stores = loadstores(config);
+    if (stores.size() > 0)
+    {
+        datastores = stores;
+    }
 
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
@@ -92,22 +122,20 @@ int main(int argc, char *argv[])
 
             // This allows us, to use different datastores, following this idea
             // -drive main:test-something-2.
-            std::string datastore = std::get<1>(datastores.back());
+            std::string datastore = default_isostore;
             std::string drivename = std::string(argv[i + 1]);
             const std::string delimiter = ":";
 
             if (drivename.find(delimiter) != std::string::npos)
             {
-                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
-                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
-
-                auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
-                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
-
-                datastore = std::get<1>(*it);
+                datastore = drivename.substr(0, drivename.find(delimiter));  // remove the drivename-part.
+                drivename = drivename.substr(drivename.find(delimiter) + 1); // remove the datastore-part.
             }
 
-            std::string drive = m3_string_format("%s/%s.iso", datastore.c_str(), drivename.c_str());
+            auto it = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
+                                   { return datastore.starts_with(std::get<0>(ct)); });
+
+            std::string drive = m3_string_format("%s/%s.iso", std::get<1>(*it).c_str(), drivename.c_str());
             QEMU_iso(ctx, drive);
         }
 
@@ -115,95 +143,96 @@ int main(int argc, char *argv[])
         {
             // This allows us, to use different datastores, following this idea
             // -drive main:test-something-2.
-            std::string datastore = std::get<1>(datastores.front());
-            std::string drivename = std::string(argv[i + 1]);
-            const std::string delimiter = ":";
-
-            if (drivename.find(delimiter) != std::string::npos)
+            if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
             {
-                std::string dtidentifier = drivename.substr(0, drivename.find(delimiter)); // remove the drivename-part.
-                drivename = drivename.substr(drivename.find(delimiter) + 1);               // remove, the datastore-part.
+                std::string datastore = default_datastore;
+                std::string drivename = std::string(argv[i + 1]);
+                const std::string delimiter = ":";
 
-                auto it = std::find_if(datastores.begin(), datastores.end(), [&dtidentifier](const std::tuple<std::string, std::string> &ct)
-                                       { return dtidentifier.starts_with(std::get<0>(ct)); });
-
-                datastore = std::get<1>(*it);
-            }
-
-            std::string drive = m3_string_format("%s/%s.img", datastore.c_str(), drivename.c_str());
-            if (!fileExists(drive))
-            {
-                QEMU_allocate_drive(drive, 32);
-            }
-
-            if (-1 == QEMU_drive(ctx, drive, driveid++))
-            {
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
-        {
-            QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
-        }
-
-        if (std::string(argv[i]).find("-snapshot") != std::string::npos)
-        {
-            QEMU_ephimeral(ctx);
-        }
-
-        if (std::string(argv[i]).find("-namespace") != std::string::npos && (i + 1 < argc))
-        {
-            nspace = m3_string_format("/var/run/netns/%s", argv[i + 1]);
-
-            // Check, that namespace eixsts
-            if (!fileExists(nspace.c_str()))
-            {
-                std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
-                std::cout << usage << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-
-        if (std::string(argv[i]).find("://") != std::string::npos)
-        {
-            const std::string delimiter = "://";
-            std::string instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
-
-            auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
-                                   { return instanceid.starts_with(std::get<0>(ct)); });
-
-            std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), instanceid.c_str());
-
-            if (it != drives.end())
-            {
-                std::tuple<std::string, std::string> conf = *it;
-                std::string backingdrive = std::get<1>(conf);
-
-                if (!fileExists(absdrive))
+                if (drivename.find(delimiter) != std::string::npos)
                 {
-                    QEMU_allocate_backed_drive(absdrive, 32, m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), backingdrive.c_str()));
+                    datastore = drivename.substr(0, drivename.find(delimiter));  // remove the drivename-part.
+                    drivename = drivename.substr(drivename.find(delimiter) + 1); // remove the datastore-part.
                 }
 
-                QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
+                auto it = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
+                                       { return datastore.starts_with(std::get<0>(ct)); });
 
-                mandatory = 1;
-            }
-            else // if backing-file was found, simply blank a 32G drive.
-            {
-                if (!fileExists(absdrive))
+                std::string drive = m3_string_format("%s/%s.img", std::get<1>(*it).c_str(), drivename.c_str());
+                if (!fileExists(drive))
                 {
-                    QEMU_allocate_drive(absdrive, 32);
+                    QEMU_allocate_drive(drive, disksize);
                 }
-                QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
-                mandatory = 1;
+
+                if (-1 == QEMU_drive(ctx, drive, driveid++))
+                {
+                    exit(EXIT_FAILURE);
+                }
             }
 
-            std::size_t str_hash = std::hash<std::string>{}(instanceid);
-            std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
-            std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
+            if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
+            {
+                QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
+            }
 
-            QEMU_cloud_init_default(ctx, hostname, instance);
+            if (std::string(argv[i]).find("-snapshot") != std::string::npos)
+            {
+                QEMU_ephimeral(ctx);
+            }
+
+            if (std::string(argv[i]).find("-namespace") != std::string::npos && (i + 1 < argc))
+            {
+                nspace = m3_string_format("/var/run/netns/%s", argv[i + 1]);
+
+                // Check, that namespace eixsts
+                if (!fileExists(nspace.c_str()))
+                {
+                    std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
+                    std::cout << usage << std::endl;
+                    exit(EXIT_FAILURE);
+                }
+            }
+
+            if (std::string(argv[i]).find("://") != std::string::npos)
+            {
+                const std::string delimiter = "://";
+                std::string instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+
+                auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
+                                       { return instanceid.starts_with(std::get<0>(ct)); });
+
+                std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), instanceid.c_str());
+
+                if (it != drives.end())
+                {
+                    std::tuple<std::string, std::string> conf = *it;
+                    std::string backingdrive = std::get<1>(conf);
+
+                    if (!fileExists(absdrive))
+                    {
+                        QEMU_allocate_backed_drive(absdrive, disksize, m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), backingdrive.c_str()));
+                    }
+
+                    QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
+
+                    mandatory = 1;
+                }
+                else // if backing-file was found, simply blank a disksize drive.
+                {
+                    if (!fileExists(absdrive))
+                    {
+                        QEMU_allocate_drive(absdrive, disksize);
+                    }
+                    QEMU_drive(ctx, absdrive, 0); // root-disk, is allways id=0.
+                    mandatory = 1;
+                }
+
+                std::size_t str_hash = std::hash<std::string>{}(instanceid);
+                std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
+                std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
+
+                QEMU_cloud_init_default(ctx, hostname, instance);
+            }
         }
     }
 
@@ -223,22 +252,16 @@ int main(int argc, char *argv[])
         QEMU_notified_started(ctx);
         QEMU_set_namespace(nspace);
         int bridgeresult = QEMU_allocate_bridge(bridge);
-        if (bridgeresult == 0)
-        {
-            QEMU_link_up(bridge);
-
-            if (brdgecidr.starts_with(QEMU_get_interface_cidr(bridge)))
-            {
-                QEMU_set_interface_cidr(bridge, brdgecidr);
-            }
-        }
-        else
+        if (bridgeresult == 1)
         {
             std::cerr << "Bridge allocation error." << std::endl;
             exit(EXIT_FAILURE);
         }
+        QEMU_link_up(bridge);
+        QEMU_set_interface_cidr(bridge, brdgecidr);
 
         std::string tapdevice = QEMU_allocate_tun(ctx);
+        QEMU_link_up(tapdevice);
         QEMU_enslave_interface(bridge, tapdevice);
         QEMU_set_default_namespace();
 

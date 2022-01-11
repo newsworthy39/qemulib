@@ -291,10 +291,7 @@ int set_if_flags(const char *ifname, short flags)
         printf("Interface '%s': Error: SIOCSIFFLAGS failed: %s\n",
                ifname, strerror(errno));
     }
-    else
-    {
-        std::cout << "Interface " << ifname << ": flags set to " << flags << std::endl;
-    }
+    
 out:
     return res;
 }
@@ -329,6 +326,29 @@ std::string QEMU_get_interface_cidr(const std::string device)
     return ip;
 }
 
+/*!
+  \fn uint32_t prefix2mask(int bits)
+  \brief creates a netmask from a specified number of bits
+  This function converts a prefix length to a netmask.  As CIDR (classless
+  internet domain internet domain routing) has taken off, more an more IP
+  addresses are being specified in the format address/prefix
+  (i.e. 192.168.2.3/24, with a corresponding netmask 255.255.255.0).  If you
+  need to see what netmask corresponds to the prefix part of the address, this
+  is the function.  See also \ref mask2prefix.
+  \param prefix is the number of bits to create a mask for.
+  \return a network mask, in network byte order.
+*/
+uint32_t prefix2mask(int prefix)
+{
+	struct in_addr mask;
+	memset(&mask, 0, sizeof(mask));
+	if (prefix) {
+		return htonl(~((1 << (32 - prefix)) - 1));
+	} else {
+		return htonl(0);
+	}
+}
+
 /**
  * @brief QEMU_set_interface_cidr
  * Sets the network cidr. Also. Its shit. Never mind.
@@ -338,26 +358,13 @@ std::string QEMU_get_interface_cidr(const std::string device)
  */
 void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
 {
-
-    std::string net;
+    
     std::string address = cidr.substr(0, cidr.find("/"));
     std::string netmask = cidr.substr(cidr.find("/") + 1);
-    if (netmask == "24")
-    {
-        net = "255.255.255.0";
-    }
-    if (netmask == "16")
-    {
-        net = "255.255.0.0";
-    }
-    if (netmask == "8")
-    {
-        net = "255.0.0.0";
-    }
+    int net = std::stoi(netmask);
 
     struct ifreq ifr;
     int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
-
     strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
 
     ifr.ifr_addr.sa_family = AF_INET;
@@ -365,14 +372,8 @@ void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
     inet_pton(AF_INET, address.c_str(), &addr->sin_addr);
     ioctl(fd, SIOCSIFADDR, &ifr);
 
-    inet_pton(AF_INET, net.c_str(), &addr->sin_addr);
+    addr->sin_addr.s_addr = prefix2mask(net);
     ioctl(fd, SIOCSIFNETMASK, &ifr);
-
-    ioctl(fd, SIOCGIFFLAGS, &ifr);
-    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
-    ifr.ifr_flags |= (IFF_UP | IFF_RUNNING);
-
-    ioctl(fd, SIOCSIFFLAGS, &ifr);
 }
 
 int QEMU_link_up(const std::string ifname)

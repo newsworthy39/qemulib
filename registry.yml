@@ -5,3 +5,10 @@ globals:
   default_bridge: br0
   default_netspace: "/proc/1/ns/net"
   default_bridge_cidr: 10.0.96.1/24
+  default_disk_size: 64g
+  default_datastore: default
+  default_isostore: iso
+datastores:
+  - default: "/home/gandalf/vms"
+  - cold: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
+  - iso: "/home/gandalf/Downloads/Applications"

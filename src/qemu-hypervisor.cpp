@@ -219,7 +219,7 @@ int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootind
  * QEMU_allocate_drive(std::string id, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_drive(std::string path, ssize_t sz)
+void QEMU_allocate_drive(std::string path, std::string sz)
 {
     if (!fileExists(QEMU_DEFAULT_IMG)) {
         std::cerr << QEMU_DEFAULT_IMG << " is missing" << std::endl;
@@ -243,7 +243,7 @@ void QEMU_allocate_drive(std::string path, ssize_t sz)
         left_argv.push_back(const_cast<char *>("-f"));
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>(path.c_str()));
-        left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
+        left_argv.push_back(const_cast<char *>(sz.c_str()));
         left_argv.push_back(NULL); // leave a null
 
         execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
@@ -259,7 +259,7 @@ void QEMU_allocate_drive(std::string path, ssize_t sz)
  * QEMU_allocate_drive(std::string id, std::string backingid, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backingfile)
+void QEMU_allocate_backed_drive(std::string path, std::string sz, std::string backingfile)
 {
     if (fileExists(path))
     {
@@ -280,7 +280,7 @@ void QEMU_allocate_backed_drive(std::string path, ssize_t sz, std::string backin
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfile.c_str()));
         left_argv.push_back(const_cast<char *>(path.c_str()));
-        left_argv.push_back(const_cast<char *>(m2_string_format("%dG", sz).c_str()));
+        left_argv.push_back(const_cast<char *>( sz.c_str()));
         left_argv.push_back(NULL); // leave a null
 
         execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
