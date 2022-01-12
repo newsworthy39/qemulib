@@ -1,6 +1,6 @@
 globals:
   language: da
-  default_instance: t1-small
+  default_instance: t1-medium
   default_machine: q35
   default_bridge: br0
   default_netspace: "/proc/1/ns/net"
@@ -8,7 +8,15 @@ globals:
   default_disk_size: 64g
   default_datastore: default
   default_isostore: iso
+  default_interface: enp2s0
 datastores:
   - default: "/home/gandalf/vms"
   - cold: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
   - iso: "/home/gandalf/Downloads/Applications"
+images:
+  - meta: "ubuntu2004backingfile"
+  - vip: "ubuntu2004backingfile"
+  - test: "ubuntu2004backingfile"
+  - ubuntu2004-master: "ubuntu2004backingfile"
+  - ubuntu2004: "ubuntu2004-master"
+  - hippogrif: "ubuntu2004-master"

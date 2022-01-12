@@ -148,7 +148,7 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port)
  * QEMU_init (int memory, int numcpus)
  * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
  */
-void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
+void QEMU_instance(QemuContext &ctx, const std::string &instanceargument, const std::string &language = "en")
 {
     int memory = 2048, cpu = 2;
 
@@ -157,7 +157,7 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
     PushArguments(ctx, "-runas", "gandalf");
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
-    PushArguments(ctx, "-k", QEMU_LANG);
+    PushArguments(ctx, "-k", language);
     PushArguments(ctx, "-boot", "menu=off,order=cdn,strict=off"); // Boot with ISO if disk is missing.
     PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
     PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
@@ -199,13 +199,33 @@ void QEMU_instance(QemuContext &ctx, const std::string &instanceargument)
 /**
  * QEMU_drive()
  */
-int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootindex = 0)
+int QEMU_drive(QemuContext &args, const std::string &drive)
+{
+    int bootindex = args.drives.size(); // thats better.
+    if (fileExists(drive))
+    {
+        std::string blockdevice = generateRandomPrefixedString("block", 4);
+        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", ++bootindex, drive.c_str(), blockdevice.c_str()));
+        std::cout << "Using drive[" << bootindex << "]: " << drive << std::endl;
+        return 0;
+    }
+    else
+    {
+        std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
+        return -1;
+    }
+}
+
+/**
+ * QEMU_drive()
+ */
+int QEMU_bootdrive(QemuContext &args, const std::string &drive)
 {
     if (fileExists(drive))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", bootindex, drive.c_str(), blockdevice.c_str()));
-        std::cout << "Using drive: " << drive << std::endl;
+        PushDriveArgument(args, m2_string_format("if=virtio,index=0,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", drive.c_str(), blockdevice.c_str()));
+        std::cout << "Using boot-drive[0]: " << drive << "." << std::endl;
         return 0;
     }
     else
@@ -422,7 +442,7 @@ void QEMU_launch(QemuContext &ctx, bool block)
                       left_argv.push_back(const_cast<char *>(drive.c_str())); 
                   });
 
-    // Next, we copy the darn drives
+    // We leave a null, to indicate EOF.
     left_argv.push_back(NULL); // leave a null
 
     execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.

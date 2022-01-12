@@ -25,6 +25,7 @@
 struct QemuContext {
     std::vector<std::string> devices;
     std::vector<std::string> drives;
+    std::string rootdrive;
 };
 
 enum QEMU_DISPLAY
@@ -34,15 +35,8 @@ enum QEMU_DISPLAY
     NONE
 };
 
-#define QEMU_LANG "da"
 #define QEMU_DEFAULT_IMG "/usr/bin/qemu-img"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
-#define QEMU_DEFAULT_INSTANCE "t1-small"
-#define QEMU_DEFAULT_MACHINE "ubuntu-q35"
-#define QEMU_DEFAULT_INTERFACE "default/macvtap"
-#define QEMU_DEFAULT_NETSPACE "/proc/1/ns/net"
-#define QEMU_DEFAULT_BRIDGE "br0"
-#define QEMU_DEFAULT_NETWORK "10.0.96.1/24"
 
 /** Stack functions */
 void PushSingleArgument(QemuContext &args, std::string value);
@@ -51,12 +45,20 @@ void PushArguments(QemuContext &args, std::string key, std::string value);
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus)
 */
-void QEMU_instance(QemuContext &args, const std::string &instanceargument);
+void QEMU_instance(QemuContext &args, const std::string &instanceargument, const std::string &language);
 
 /*
- * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
-*/
-int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootindex);
+ * QEMU_drive (QemuContext )
+ * Installs a drive as the non-bootable drive (and data-drive).
+ */
+int QEMU_drive(QemuContext &args, const std::string &drive);
+
+/*
+ * QEMU_bootdrive (QemuContext )
+ * Installs a drive as the bootable drive (and os-drive).
+ */
+int QEMU_bootdrive(QemuContext &args, const std::string &drive);
+
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)

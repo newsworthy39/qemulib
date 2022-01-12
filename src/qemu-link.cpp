@@ -143,6 +143,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     }
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
+    
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
     PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", mac.c_str(), guestId.c_str()));
 
