@@ -6,6 +6,6 @@
 void QEMU_powerdown(std::string &reservationid);
 void QEMU_kill(std::string &reservationid);
 void QEMU_reset(std::string &reservationid);
-std::string QEMU_interfaces(std::string &guestid);
+std::string QEMU_qga_qinterfaces(std::string &guestid);
 
 #endif

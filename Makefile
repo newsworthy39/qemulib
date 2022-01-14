@@ -44,7 +44,7 @@ libraries/json11/json11.cpp:
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
 
 clean:
-	rm -f *.o $(BUILDDIR)/* src/*.o
+	rm -rf *.o $(BUILDDIR) src/*.o
 
 install: clean all
 	cp $(BUILDDIR)/* /home/gandalf/bin

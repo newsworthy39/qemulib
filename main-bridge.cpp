@@ -27,11 +27,11 @@ type globals(YAML::Node &configuration, std::string section, std::string key, ty
 /**
  * @brief loadMapFromRegistry (Yaml::Node &Config, const std::string section-key)
  * This function, decodes a yaml-section, from a yaml-node.
- * @tparam t1 
- * @tparam t2 
+ * @tparam t1
+ * @tparam t2
  * @param config Yaml::Node
  * @param key std::string
- * @return std::vector<std::tuple<t1, t2>> 
+ * @return std::vector<std::tuple<t1, t2>>
  */
 template <class t1, class t2>
 std::vector<std::tuple<t1, t2>> loadMapFromRegistry(YAML::Node &config, const std::string key)
@@ -58,14 +58,55 @@ std::vector<std::tuple<t1, t2>> loadMapFromRegistry(YAML::Node &config, const st
     return vec;
 }
 
+/**
+ * @brief loadstores from yaml config (registry.yaml)
+ *
+ * @param config
+ * @return std::vector<std::tuple<std::string, std::string>>
+ */
 std::vector<std::tuple<std::string, std::string>> loadstores(YAML::Node &config)
 {
     return loadMapFromRegistry<std::string, std::string>(config, "datastores");
 }
 
+/**
+ * @brief loadimages from yaml config (registry.yaml)
+ *
+ * @param config
+ * @return std::vector<std::tuple<std::string, std::string>>
+ */
 std::vector<std::tuple<std::string, std::string>> loadimages(YAML::Node &config)
 {
     return loadMapFromRegistry<std::string, std::string>(config, "images");
+}
+
+/**
+ * @brief loadModels(YAML::Node &config)
+ *
+ * @param config
+ * @return std::vector<struct Model>
+ */
+std::vector<struct Model> loadModels(YAML::Node &config)
+{
+    const std::string key = "models";
+    YAML::Node node = config[key];
+    std::vector<struct Model> vec;
+
+    if (node.Type() == YAML::NodeType::Sequence)
+    {
+        for (std::size_t i = 0; i < node.size(); i++)
+        {
+            // if (node.Type() == YAML::NodeType::Sequence)
+            // {
+            //     YAML::Node seq = node[i];
+            //     for (std::size_t j = 0; j < seq.size(); j++)
+            //     {
+
+            //     }
+            // }
+        }
+    }
+    return vec;
 }
 
 int main(int argc, char *argv[])
@@ -76,14 +117,23 @@ int main(int argc, char *argv[])
 
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", "/home/gandalf/vms"},
+        {"tmp", "/tmp"},
         {"iso", "/home/gandalf/Downloads/Applications"},
+    };
+
+    std::vector<struct Model> models = {
+        {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"},
+        {.name = "t1-medium", .memory = 2048, .cpus = 2, .flags = "host", .arch = "amd64"},
+        {.name = "t1-large", .memory = 4096, .cpus = 4, .flags = "host", .arch = "amd64"},
+        {.name = "t1-xlarge", .memory = 8196, .cpus = 8, .flags = "host", .arch = "amd64"},
     };
 
     QemuContext ctx;
     int port = 4444, snapshot = 0, mandatory = 0;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
-    std::string instance = globals<std::string>(config, "globals", "default_instance", "t1-small");
+    std::string lang = globals<std::string>(config, "globals", "language", "en");
+    std::string model = globals<std::string>(config, "globals", "default_instance", "t1-small");
     std::string machine = globals<std::string>(config, "globals", "default_machine", "ubuntu-q35");
     std::string bridge = globals<std::string>(config, "globals", "default_bridge", "br0");
     std::string nspace = globals<std::string>(config, "globals", "default_netspace", "/proc/1/ns/net");
@@ -104,9 +154,9 @@ int main(int argc, char *argv[])
     }
 
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-instance {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
+                                         "-model {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
                                          "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], instance.c_str(), bridge.c_str(), nspace.c_str(), machine.c_str());
+                                         argv[0], model.c_str(), bridge.c_str(), nspace.c_str(), machine.c_str());
 
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
@@ -122,9 +172,9 @@ int main(int argc, char *argv[])
             display = QEMU_DISPLAY::VNC;
         }
 
-        if (std::string(argv[i]).find("-instance") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-model") != std::string::npos && (i + 1 < argc))
         {
-            instance = argv[i + 1];
+            model = argv[i + 1];
         }
 
         if (std::string(argv[i]).find("-bridge") != std::string::npos && (i + 1 < argc))
@@ -171,11 +221,11 @@ int main(int argc, char *argv[])
             {
                 datastore = drivename.substr(0, drivename.find(delimiter));  // remove the drivename-part.
                 drivename = drivename.substr(drivename.find(delimiter) + 1); // remove the datastore-part.
-
-                auto it = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
-                                       { return datastore.starts_with(std::get<0>(ct)); });
-                datastore = std::get<1>(*it);
             }
+
+            auto dt = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
+                                   { return datastore.starts_with(std::get<0>(ct)); });
+            datastore = std::get<1>(*dt);
 
             auto it = std::find_if(drives.begin(), drives.end(), [&drivename](const std::tuple<std::string, std::string> &ct)
                                    { return drivename.starts_with(std::get<0>(ct)); });
@@ -189,7 +239,7 @@ int main(int argc, char *argv[])
 
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_backed_drive(absdrive, disksize, m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), backingdrive.c_str()));
+                    QEMU_allocate_backed_drive(absdrive, disksize, backingdrive);
                 }
             }
             else // if backing-file was found, simply blank a disksize drive.
@@ -246,7 +296,7 @@ int main(int argc, char *argv[])
 
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_backed_drive(absdrive, disksize, m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), backingdrive.c_str()));
+                    QEMU_allocate_backed_drive(absdrive, disksize, backingdrive);
                 }
             }
             else // if backing-file was found, simply blank a disksize drive.
@@ -276,10 +326,25 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    // Autoapply the Model.
+    auto it = std::find_if(models.begin(), models.end(), [&model](const struct Model &line)
+                           { return line.name.compare(model) == 0; });
+
+    if (it != models.end())
+    {
+        ctx.model = *it;
+    }
+    else
+    {
+        ctx.model = *models.begin();
+    }
+
+    std::cout << "Using model: " << ctx.model.name << ", cpus: " << ctx.model.cpus << ", memory: " << ctx.model.memory << ", flags: " << ctx.model.flags << std::endl;
+
     pid_t daemon = fork();
     if (daemon == 0)
     {
-        QEMU_instance(ctx, instance, "da");
+        QEMU_instance(ctx, lang);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_notified_started(ctx);
@@ -296,6 +361,7 @@ int main(int argc, char *argv[])
         QEMU_link_up(tapdevice);
         QEMU_enslave_interface(bridge, tapdevice);
         QEMU_set_default_namespace();
+
         pid_t child = fork();
         if (child == 0)
         {

@@ -19,11 +19,13 @@ int main(int argc, char *argv[])
 {
     bool verbose = false;
     std::string topic = "";
-    std::string instance = "";
+    std::string reservation = "";
+    std::string device = "";
     int force = 0;
+    bool all = true;
 
-    std::string usage = m3_string_format("usage(): %s (-help) reservation://%s",
-                                          argv[0], instance.c_str());
+    std::string usage = m3_string_format("usage(): %s (-help) (-device) (reservation://%s)",
+                                         argv[0], reservation.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -34,6 +36,11 @@ int main(int argc, char *argv[])
             exit(EXIT_FAILURE);
         }
 
+        if (std::string(argv[i]).find("-device") != std::string::npos && (i + 1 < argc))
+        {
+            device = argv[i + 1];
+        }
+
         if (std::string(argv[i]).find("-v") != std::string::npos)
         {
             verbose = true;
@@ -42,21 +49,33 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("://") != std::string::npos)
         {
             const std::string delimiter = "://";
-            instance = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            all = false;
         }
     }
 
-    if (instance.empty())
-    {
-        std::cerr << "Error: ARN not supplied" << std::endl;
-        std::cout << usage << std::endl;
-        exit(EXIT_FAILURE);
-    }
+    std::vector<std::string> reservations = QEMU_get_reservations();
+    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation, &device](std::string &res) {
+        if (res == reservation || all == true) {
+            std::cout << "reservation: " << res << std::endl;
+            std::string error;
+            json11::Json json = json11::Json::parse(QEMU_qga_qinterfaces(res), error);
+            json11::Json::array node = json["return"].array_items();
 
-    std::string error;
-    json11::Json json = json11::Json::parse(QEMU_interfaces(instance), error);
+            std::for_each(node.begin(), node.end(), [&device](const json11::Json &nd) { 
+                json11::Json::array ips =  nd["ip-addresses"].array_items() ;
 
-    std::cout << json["return"].dump() << std::endl;
-
+                if (nd["name"].string_value().starts_with(device)) {
+                    std::cout << " device: " << nd["name"].string_value() << std::endl;
+                    std::for_each(ips.begin(), ips.end(), [](const json11::Json &ip) { 
+                        
+                        if ( ip["ip-address-type"].string_value().starts_with("ipv4")) {
+                            std::cout << "  ip: " << ip["ip-address"].string_value() << std::endl;
+                        }
+                    });
+                } 
+            });
+        } 
+    });
     return EXIT_SUCCESS;
 }
