@@ -80,6 +80,14 @@ std::vector<std::tuple<std::string, std::string>> loadimages(YAML::Node &config)
     return loadMapFromRegistry<std::string, std::string>(config, "images");
 }
 
+void operator >> (const YAML::Node& node, struct Model& model) {
+   model.name   = node["name"].as<std::string>();
+   model.memory = node["memory"].as<int>();
+   model.cpus   = node["cpus"].as<int>();
+   model.arch   = node["arch"].as<std::string>();
+   model.flags  = node["flags"].as<std::string>();
+}
+
 /**
  * @brief loadModels(YAML::Node &config)
  *
@@ -92,20 +100,13 @@ std::vector<struct Model> loadModels(YAML::Node &config)
     YAML::Node node = config[key];
     std::vector<struct Model> vec;
 
-    if (node.Type() == YAML::NodeType::Sequence)
+    std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
     {
-        for (std::size_t i = 0; i < node.size(); i++)
-        {
-            // if (node.Type() == YAML::NodeType::Sequence)
-            // {
-            //     YAML::Node seq = node[i];
-            //     for (std::size_t j = 0; j < seq.size(); j++)
-            //     {
+        struct Model model;
+        node >> model;
+        vec.push_back(model);
+    });
 
-            //     }
-            // }
-        }
-    }
     return vec;
 }
 
@@ -125,7 +126,6 @@ int main(int argc, char *argv[])
         {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"},
         {.name = "t1-medium", .memory = 2048, .cpus = 2, .flags = "host", .arch = "amd64"},
         {.name = "t1-large", .memory = 4096, .cpus = 4, .flags = "host", .arch = "amd64"},
-        {.name = "t1-xlarge", .memory = 8196, .cpus = 8, .flags = "host", .arch = "amd64"},
     };
 
     QemuContext ctx;
@@ -153,6 +153,12 @@ int main(int argc, char *argv[])
         drives = images;
     }
 
+    std::vector<struct Model> md = loadModels(config);
+    if (md.size() > 0)
+    {
+        models = md;
+    }
+
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
                                          "-model {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
                                          "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
@@ -175,6 +181,15 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-model") != std::string::npos && (i + 1 < argc))
         {
             model = argv[i + 1];
+
+            if (std::string("?").compare(model) == 0) {
+                std::cout << "Available models: " << std::endl;
+                std::for_each(models.begin(), models.end(), [](const struct Model &mod) { 
+                    std::cout << mod << std::endl;
+                });
+
+                exit(EXIT_FAILURE);
+            }
         }
 
         if (std::string(argv[i]).find("-bridge") != std::string::npos && (i + 1 < argc))

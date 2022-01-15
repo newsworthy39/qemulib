@@ -29,7 +29,7 @@ struct Model
     std::string flags;
     std::string arch;
 };
-
+std::ostream& operator<<(std::ostream &os, const struct Model &model);
 struct QemuContext
 {
     struct Model model = { .name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host" ,.arch = "amd64"};

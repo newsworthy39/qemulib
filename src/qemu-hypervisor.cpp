@@ -1,6 +1,16 @@
 #include <qemu-hypervisor.hpp>
 
 /**
+ * @brief Overloads section
+ * 
+ */
+
+std::ostream& operator<<(std::ostream &os, const struct Model &model) {
+    os << model.name << ", " << model.cpus << " cpus and " << model.memory << " MB with host-flags: " << model.flags << ", architecture: " << model.arch;
+    return os;
+}
+
+/**
  * Helper functions 
  */
 // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
