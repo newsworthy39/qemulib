@@ -106,6 +106,13 @@ std::vector<struct Model> loadModels(YAML::Node &config)
     return vec;
 }
 
+/**
+ * @brief main. Default program EP.
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char *argv[])
 {
     std::vector<std::tuple<std::string, std::string>> drives{

@@ -17,6 +17,18 @@ std::string m3_string_format(const std::string &format, Args... args)
     return std::string(buf.get(), buf.get() + size - 1); // We don't want the '\0' inside
 }
 
+/**
+ * @brief globals (type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
+ * globals, reads configurations from a top-level element in a YAML-configuration, to supersede
+ * defaults with new possibilities.
+ * 
+ * @tparam type 
+ * @param configuration a YAML-node, loaded via yaml.parse or similar.
+ * @param section the section in the yamlæ-node, containing a array with values.
+ * @param key 
+ * @param defaults 
+ * @return type 
+ */
 template <class type>
 type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
 {
@@ -80,6 +92,13 @@ std::vector<std::tuple<std::string, std::string>> loadimages(YAML::Node &config)
     return loadMapFromRegistry<std::string, std::string>(config, "images");
 }
 
+/**
+ * @brief Operator overloading of the model <<, allowing it to be loaded
+ * using standard operator functions, for readability.
+ * 
+ * @param node 
+ * @param model 
+ */
 void operator >> (const YAML::Node& node, struct Model& model) {
    model.name   = node["name"].as<std::string>();
    model.memory = node["memory"].as<int>();
@@ -89,7 +108,8 @@ void operator >> (const YAML::Node& node, struct Model& model) {
 }
 
 /**
- * @brief loadModels(YAML::Node &config)
+ * @brief loadModels(YAML::Node &config). 
+ * Loads CPU Models from the YAML-configuration.
  *
  * @param config
  * @return std::vector<struct Model>
@@ -110,6 +130,13 @@ std::vector<struct Model> loadModels(YAML::Node &config)
     return vec;
 }
 
+/**
+ * @brief main. Default program EP.
+ * 
+ * @param argc 
+ * @param argv 
+ * @return int 
+ */
 int main(int argc, char *argv[])
 {
     std::vector<std::tuple<std::string, std::string>> drives{
