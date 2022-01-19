@@ -53,7 +53,7 @@ int QEMU_allocate_bridge(std::string bridge)
 
     if ((err = rtnl_link_alloc_cache(sk, AF_UNSPEC, &link_cache)) < 0)
     {
-        nl_perror(err, "Unable to allocate cache");
+        nl_perror(err, " cache");
         return err;
     }
 
@@ -143,6 +143,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     }
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
+    
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
     PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", mac.c_str(), guestId.c_str()));
 
@@ -179,7 +180,7 @@ int QEMU_tun_allocate(const std::string device)
     memset(&ifr, 0, sizeof(ifr));
 
     /* request a tap device, disable PI, and add vnet header support if
-     * requested and it's available. 
+     * requested and it's available.
     /* Flags: IFF_TUN   - TUN device (no Ethernet headers)
      *        IFF_TAP   - TAP device
      *
@@ -268,11 +269,12 @@ void QEMU_enslave_interface(std::string bridge, std::string interface)
     nl_close(sock);
 }
 
-int skfd = -1; /* AF_INET socket for ioctl() calls.*/
+
 int set_if_flags(const char *ifname, short flags)
 {
     struct ifreq ifr;
     int res = 0;
+    int skfd = -1; /* AF_INET socket for ioctl() calls.*/
 
     ifr.ifr_flags = flags;
     strncpy(ifr.ifr_name, ifname, IFNAMSIZ);
@@ -287,15 +289,92 @@ int set_if_flags(const char *ifname, short flags)
     res = ioctl(skfd, SIOCSIFFLAGS, &ifr);
     if (res < 0)
     {
-        printf("Interface '%s': Error: SIOCSIFFLAGS failed: %s\n",
+        printf("set_if_flags '%s': Error: SIOCSIFFLAGS failed: %s\n",
                ifname, strerror(errno));
     }
-    else
-    {
-        std::cout << "Interface " << ifname << ": flags set to " << flags << std::endl;
-    }
+    
 out:
     return res;
+}
+
+std::string QEMU_get_interface_cidr(const std::string device)
+{
+    struct ifreq ifr;
+    int res = 0;
+    int skfd = -1; /* AF_INET socket for ioctl() calls.*/
+    
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
+
+    if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
+    {
+        printf("socket error %s\n", strerror(errno));
+        res = 1;
+    }
+
+    /* I want to get an IPv4 IP address */
+    ifr.ifr_addr.sa_family = AF_INET;
+
+    /* I want IP address attached to "eth0" */
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ - 1);
+
+    ioctl(skfd, SIOCGIFADDR, &ifr);
+
+    close(skfd);
+
+    /* display result */
+    std::string ip = inet_ntoa(((struct sockaddr_in *)&ifr.ifr_addr)->sin_addr);
+
+    return ip;
+}
+
+/*!
+  \fn uint32_t prefix2mask(int bits)
+  \brief creates a netmask from a specified number of bits
+  This function converts a prefix length to a netmask.  As CIDR (classless
+  internet domain internet domain routing) has taken off, more an more IP
+  addresses are being specified in the format address/prefix
+  (i.e. 192.168.2.3/24, with a corresponding netmask 255.255.255.0).  If you
+  need to see what netmask corresponds to the prefix part of the address, this
+  is the function.  See also \ref mask2prefix.
+  \param prefix is the number of bits to create a mask for.
+  \return a network mask, in network byte order.
+*/
+uint32_t prefix2mask(int prefix)
+{
+	struct in_addr mask;
+	memset(&mask, 0, sizeof(mask));
+	if (prefix) {
+		return htonl(~((1 << (32 - prefix)) - 1));
+	} else {
+		return htonl(0);
+	}
+}
+
+/**
+ * @brief QEMU_set_interface_cidr
+ * Sets the network cidr. Also. Its shit. Never mind.
+ *
+ * @param name the interface.
+ * @param cidr the cidr.
+ */
+void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
+{
+    
+    std::string address = cidr.substr(0, cidr.find("/"));
+    std::string netmask = cidr.substr(cidr.find("/") + 1);
+    int net = std::stoi(netmask);
+
+    struct ifreq ifr;
+    int fd = socket(PF_INET, SOCK_DGRAM, IPPROTO_IP);
+    strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
+
+    ifr.ifr_addr.sa_family = AF_INET;
+    struct sockaddr_in *addr = (struct sockaddr_in *)&ifr.ifr_addr;
+    inet_pton(AF_INET, address.c_str(), &addr->sin_addr);
+    ioctl(fd, SIOCSIFADDR, &ifr);
+
+    addr->sin_addr.s_addr = prefix2mask(net);
+    ioctl(fd, SIOCSIFNETMASK, &ifr);
 }
 
 int QEMU_link_up(const std::string ifname)
@@ -371,7 +450,7 @@ void QEMU_delete_link(QemuContext &ctx, std::string interface)
 
 /**
  * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
- * 
+ *
  * @param ctx QemuContext.
  * @return int a open socket.
  */
@@ -383,7 +462,7 @@ int QEMU_OpenQMPSocket(QemuContext &ctx)
 
 /**
  * @brief QEMU_OpenQMPSocket. Opens a socket to the qemu guest monitor
- * 
+ *
  * @param std::string reservationid
  * @return int a open socket.
  */
@@ -399,7 +478,7 @@ int QEMU_OpenQMPSocketFromPath(std::string &reservationid)
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         perror("socket");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
     remote.sun_family = AF_UNIX;
@@ -427,7 +506,7 @@ int QEMU_OpenQGASocketFromPath(std::string &guestid)
     if ((s = socket(AF_UNIX, SOCK_STREAM, 0)) == -1)
     {
         perror("socket");
-        exit(EXIT_FAILURE); 
+        exit(EXIT_FAILURE);
     }
 
     remote.sun_family = AF_UNIX;
@@ -442,3 +521,5 @@ int QEMU_OpenQGASocketFromPath(std::string &guestid)
     // t = recv(s, str, 4096, 0);
     return s;
 }
+
+

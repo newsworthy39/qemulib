@@ -20,11 +20,21 @@
 #include <fstream>
 #include <algorithm>
 
-//typedef std::vector<std::string> QemuContext;
-
-struct QemuContext {
+struct Model
+{
+    std::string name;
+    unsigned int memory;
+    unsigned int cpus;
+    std::string flags;
+    std::string arch;
+};
+std::ostream& operator<<(std::ostream &os, const struct Model &model);
+struct QemuContext
+{
+    struct Model model = { .name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host" ,.arch = "amd64"};
     std::vector<std::string> devices;
     std::vector<std::string> drives;
+    std::string rootdrive;
 };
 
 enum QEMU_DISPLAY
@@ -34,43 +44,46 @@ enum QEMU_DISPLAY
     NONE
 };
 
-#define QEMU_LANG "da"
 #define QEMU_DEFAULT_IMG "/usr/bin/qemu-img"
 #define QEMU_DEFAULT_SYSTEM "/usr/bin/qemu-system-x86_64"
-#define QEMU_DEFAULT_INSTANCE "t1-small"
-#define QEMU_DEFAULT_MACHINE "ubuntu-q35"
-#define QEMU_DEFAULT_INTERFACE "default/macvtap"
-#define QEMU_DEFAULT_REDIS "10.0.94.254"
 
 /** Stack functions */
-void PushSingleArgument(QemuContext &args, std::string value);
+void PushDeviceArgument(QemuContext &args, std::string value);
+void PushDriveArgument(QemuContext &ctx, std::string value);
 void PushArguments(QemuContext &args, std::string key, std::string value);
 
 /*
- * QEMU_init (std::vector<std::string>, int memory, int numcpus)
-*/
-void QEMU_instance(QemuContext &args, const std::string &instanceargument);
+ * QEMU_init (std::vector<std::string>, int memory, int numcpus, const std::string language)
+ */
+void QEMU_instance(QemuContext &ctx, const std::string language = "en");
 
 /*
- * QEMU_drive (std::vector<std::string>, int memory, int numcpus)
-*/
-int QEMU_drive(QemuContext &args, const std::string &drive, unsigned int bootindex);
+ * QEMU_drive (QemuContext )
+ * Installs a drive as the non-bootable drive (and data-drive).
+ */
+int QEMU_drive(QemuContext &args, const std::string &drive);
+
+/*
+ * QEMU_bootdrive (QemuContext )
+ * Installs a drive as the bootable drive (and os-drive).
+ */
+int QEMU_bootdrive(QemuContext &args, const std::string &drive);
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)
-*/
+ */
 void QEMU_machine(QemuContext &args, const std::string model);
 
 /*
  * QEMU_iso (QemuContext &args, const std::string &model, const std::string &dabase)
-*/
+ */
 void QEMU_iso(QemuContext &ctx, const std::string path);
 
 /**
  * QEMU_launch(QemuContext& args, std::string tapname, bool daemonize)
  * Launches qemu process, blocking if block is set to true. Defaults is to non-block and return immediately.
  */
-void QEMU_launch(QemuContext &args, bool block = false);
+void QEMU_launch(QemuContext &args, bool block = true, const std::string hypervisor = QEMU_DEFAULT_SYSTEM);
 
 /**
  * QEMU_Display(std::vector<std::string> &args, const QEMU_DISPLAY& display);
@@ -81,13 +94,13 @@ void QEMU_display(QemuContext &args, const QEMU_DISPLAY &display);
  * QEMU_allocate_backed_drive(std::string id, ssize_t sz,  std::string backingid,)
  * Will create a new image, but refuse to overwrite old ones, based on a backing id
  */
-void QEMU_allocate_backed_drive(std::string id, ssize_t sz, std::string backingfile);
+void QEMU_allocate_backed_drive(std::string id, std::string sz, std::string backingfile);
 
 /**
  * QEMU_allocate_drive(std::string id, ssize_t sz)
  * Will create a new image, but refuse to overwrite old ones.
  */
-void QEMU_allocate_drive(std::string id, ssize_t sz);
+void QEMU_allocate_drive(std::string id, std::string sz);
 
 /**
  * QEMU_rebase_backed_drive(std::string id, std::string backingpath)
@@ -152,17 +165,11 @@ void QEMU_cloud_init_remove(QemuContext &ctx);
 
 /**
  * QEMU_cloud_init_default
-  * serial=ds=None
+ * serial=ds=None
  */
 void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid);
 
 bool fileExists(const std::string &filename);
-
-/**
- * QEMU_get_pid
- * get pid of running hypervisor.
- */
-pid_t QEMU_get_pid(std::string &reservationid);
 
 /**
  * generateRandomPrefixedString(std::string prefix, int length)
@@ -173,5 +180,17 @@ std::string generateRandomPrefixedString(std::string prefix, int length);
  * generatePrefixedUniqueString(std::string prefix, int length)
  */
 std::string generatePrefixedUniqueString(std::string prefix, std::size_t hash, unsigned int length);
+
+/**
+ * QEMU_get_pid
+ * get pid of running hypervisor.
+ */
+pid_t QEMU_get_pid(std::string &reservationid);
+
+/**
+ * @brief QEMU_get_reservations()
+ * @returns std::vector<std::string>
+ */
+std::vector<std::string> QEMU_get_reservations();
 
 #endif

@@ -56,6 +56,8 @@
         "codecvt": "cpp",
         "iomanip": "cpp",
         "set": "cpp",
-        "complex": "cpp"
+        "complex": "cpp",
+        "forward_list": "cpp",
+        "unordered_set": "cpp"
     }
 }

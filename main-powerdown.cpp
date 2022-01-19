@@ -21,9 +21,10 @@ int main(int argc, char *argv[])
     std::string topic = "";
     std::string reservation = "";
     bool force = false;
+    bool all = true;
 
-    std::string usage = m3_string_format("usage(): %s (-help) (-force) reservation://%s",
-                                           argv[0], reservation.c_str());
+    std::string usage = m3_string_format("usage(): %s (-help) (-force) (reservation://%s)",
+                                         argv[0], reservation.c_str());
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -39,7 +40,7 @@ int main(int argc, char *argv[])
             verbose = true;
         }
 
-         if (std::string(argv[i]).find("-force") != std::string::npos)
+        if (std::string(argv[i]).find("-force") != std::string::npos)
         {
             force = true;
         }
@@ -48,25 +49,24 @@ int main(int argc, char *argv[])
         {
             const std::string delimiter = "://";
             reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            all = false;
         }
     }
-    
-    if (reservation.empty())
-    {
-        std::cerr << "Error: reservation not supplied" << std::endl;
-        std::cout << usage << std::endl;
-        exit(EXIT_FAILURE);
-    }
 
-    std::cout << "Using reservation " << reservation ;
-
-    if (!force) {
-        std::cout << " without force " << std::endl;
-        QEMU_powerdown(reservation);
-    } else {
-        std::cout << " with force " << std::endl;
-        QEMU_kill(reservation);
-    }
+    std::vector<std::string> reservations = QEMU_get_reservations();
+    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation](std::string &res)
+                  {
+        if (res == reservation || all == true)
+            if (force)
+            {
+                std::cout << "Sending kill to " << res << std::endl;
+                QEMU_kill(res);
+            }
+            else
+            {
+                std::cout << "Sending powerdown to " << res << std::endl;
+                QEMU_powerdown(res);
+            } });
 
     return EXIT_SUCCESS;
 }

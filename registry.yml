@@ -1,0 +1,79 @@
+globals:
+  language: da
+  default_instance: t1-medium
+  default_machine: q35
+  default_disk_size: 64g
+  default_datastore: default
+  default_isostore: iso
+  default_network: default
+networks:
+  - topology: bridge
+    cidr: 10.0.96.1/24
+    name: default
+    namespace: default
+  - topology: macvtap
+    interface: enp2s0
+    name: public
+    namespace: root
+datastores:
+  - default: "/home/gandalf/vms"
+  - cold: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
+  - tmp: "/tmp"
+  - iso: "/home/gandalf/Downloads/Applications"
+images:
+  - default: "/home/gandalf/vms/ubuntu2004backingfile.img"
+  - ubuntu2004-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
+  - meta: "/home/gandalf/vms/ubuntu2004-master.img"
+  - vip: "/home/gandalf/vms/ubuntu2004-master.img"
+  - hippogrif: "/home/gandalf/vms/ubuntu2004-master.img"
+models:
+  - name: t1-small
+    memory: 1024
+    cpus: 1
+    flags: host
+    arch: amd64
+  - name: t1-medium
+    memory: 2048
+    cpus: 2
+    flags: host    
+    arch: amd64
+  - name: t1-large
+    memory: 4096
+    cpus: 4
+    flags: host    
+    arch: amd64
+  - name: t1-xlarge
+    memory: 8192
+    cpus: 8
+    flags: host    
+    arch: amd64  
+  - name: c1-smaller
+    memory: 512
+    cpus: 2
+    flags: host    
+    arch: amd64     
+  - name: c1-faster
+    memory: 1024
+    cpus: 4
+    flags: host    
+    arch: amd64
+  - name: m1-small
+    memory: 4096
+    cpus: 1
+    flags: host    
+    arch: amd64
+  - name: m1-medium
+    memory: 8192
+    cpus: 2
+    flags: host    
+    arch: amd64
+  - name: m1-large
+    memory: 16384
+    cpus: 4
+    flags: host    
+    arch: amd64               
+  - name: m1-xlarge
+    memory: 32768
+    cpus: 8
+    flags: host    
+    arch: amd64      
