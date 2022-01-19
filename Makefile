@@ -3,7 +3,7 @@ obj = $(src:.cpp=.o)
 LDFLAGS = -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
 CXX=g++ -std=c++2a $(INC)
-PACKAGES=rogue qemu-interfaces qemu-powerdown
+PACKAGES=qemu qemu-interfaces qemu-powerdown
 BUILDDIR=build
 FLAGS=-o3
 
@@ -40,7 +40,7 @@ libraries/json11/json11.cpp:
 clean:
 	rm -rf *.o $(BUILDDIR) src/*.o
 
-install: clean all
+install: uninstall clean all 
 	cp $(BUILDDIR)/* /home/gandalf/bin
 	
 uninstall:
