@@ -20,7 +20,6 @@
 #include <fstream>
 #include <algorithm>
 
-// typedef std::vector<std::string> QemuContext;
 struct Model
 {
     std::string name;

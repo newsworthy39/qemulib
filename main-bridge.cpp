@@ -2,6 +2,7 @@
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
 #include <yaml-cpp/yaml.h>
+#include <qemu-bridge.hpp>
 
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)
@@ -21,13 +22,13 @@ std::string m3_string_format(const std::string &format, Args... args)
  * @brief globals (type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
  * globals, reads configurations from a top-level element in a YAML-configuration, to supersede
  * defaults with new possibilities.
- * 
- * @tparam type 
+ *
+ * @tparam type
  * @param configuration a YAML-node, loaded via yaml.parse or similar.
  * @param section the section in the yamlæ-node, containing a array with values.
- * @param key 
- * @param defaults 
- * @return type 
+ * @param key
+ * @param defaults
+ * @return type
  */
 template <class type>
 type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
@@ -95,20 +96,21 @@ std::vector<std::tuple<std::string, std::string>> loadimages(YAML::Node &config)
 /**
  * @brief Operator overloading of the model <<, allowing it to be loaded
  * using standard operator functions, for readability.
- * 
- * @param node 
- * @param model 
+ *
+ * @param node
+ * @param model
  */
-void operator >> (const YAML::Node& node, struct Model& model) {
-   model.name   = node["name"].as<std::string>();
-   model.memory = node["memory"].as<int>();
-   model.cpus   = node["cpus"].as<int>();
-   model.arch   = node["arch"].as<std::string>();
-   model.flags  = node["flags"].as<std::string>();
+void operator>>(const YAML::Node &node, struct Model &model)
+{
+    model.name = node["name"].as<std::string>();
+    model.memory = node["memory"].as<int>();
+    model.cpus = node["cpus"].as<int>();
+    model.arch = node["arch"].as<std::string>();
+    model.flags = node["flags"].as<std::string>();
 }
 
 /**
- * @brief loadModels(YAML::Node &config). 
+ * @brief loadModels(YAML::Node &config).
  * Loads CPU Models from the YAML-configuration.
  *
  * @param config
@@ -121,21 +123,126 @@ std::vector<struct Model> loadModels(YAML::Node &config)
     std::vector<struct Model> vec;
 
     std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
-    {
+                  {
         struct Model model;
         node >> model;
-        vec.push_back(model);
-    });
+        vec.push_back(model); });
 
     return vec;
 }
 
+std::ostream &operator<<(std::ostream &os, const struct Network &net)
+{
+    switch (net.topology)
+    {
+    case NetworkTopology::Bridge:
+    {
+        os << "Bridge network association: " << net.name << " network " << net.cidr;
+    }
+    break;
+    case NetworkTopology::Macvtap:
+    {
+        os << "Macvtap network association: " << net.name << ", master interface " << net.interface << ", mode: " << net.macvtapmode;
+    }
+    break;
+    }
+
+    os << ", namespace " << net.net_namespace;
+
+    return os;
+}
+
+/**
+ * @brief Operator overloading of the model <<, allowing it to be loaded
+ * using standard operator functions, for readability.
+ *
+ * @param node
+ * @param net
+ */
+void operator>>(const YAML::Node &node, struct Network &net)
+{
+
+    std::string tp = node["topology"].as<std::string>();
+    net.name = node["name"].as<std::string>();
+    net.net_namespace = "default";
+
+    if (node["namespace"])
+    {
+        net.net_namespace = node["namespace"].as<std::string>();
+    }
+
+    if (tp.compare("bridge") == 0)
+    {
+        net.topology = NetworkTopology::Bridge;
+        if (node["cidr"])
+        {
+            net.cidr = node["cidr"].as<std::string>();
+        }
+        else
+        {
+            std::cerr << "When using bridge-mode, cidr is required" << std::endl;
+        }
+    }
+    if (tp.compare("macvtap") == 0)
+    {
+        net.topology = NetworkTopology::Macvtap;
+        net.macvtapmode = NetworkMacvtapMode::Private;
+
+        if (node["interface"])
+        {
+            net.interface = node["interface"].as<std::string>();
+        }
+        else
+        {
+            std::cerr << "When using macvtap-mode, interface is required" << std::endl;
+        }
+
+        if (node["mode"])
+        {
+            std::string mode = node["mode"].as<std::string>();
+            if (mode.compare("bridge") == 0)
+            {
+                net.macvtapmode == NetworkMacvtapMode::Bridged;
+            }
+            if (mode.compare("vepa") == 0)
+            {
+                net.macvtapmode == NetworkMacvtapMode::VEPA;
+            }
+            if (mode.compare("private") == 0)
+            {
+                net.macvtapmode == NetworkMacvtapMode::Private;
+            }
+        }
+    }
+}
+
+/**
+ * @brief loadModels(YAML::Node &config).
+ * Loads CPU Models from the YAML-configuration.
+ *
+ * @param config
+ * @return std::vector<struct Model>
+ */
+std::vector<struct Network> loadNetworks(YAML::Node &config)
+{
+    const std::string key = "networks";
+    YAML::Node node = config[key];
+    std::vector<struct Network> vec;
+
+    std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
+                  {
+        struct Network network;
+        node >> network;
+        vec.push_back(network); });
+
+    return vec;
+}
 /**
  * @brief main. Default program EP.
- * 
- * @param argc 
- * @param argv 
- * @return int 
+ *
+ * @param argc
+ * @param argv
+ * @return int
  */
 int main(int argc, char *argv[])
 {
@@ -155,6 +262,10 @@ int main(int argc, char *argv[])
         {.name = "t1-large", .memory = 4096, .cpus = 4, .flags = "host", .arch = "amd64"},
     };
 
+    std::vector<struct Network> networks = {
+        {.topology = NetworkTopology::Bridge, .name = "default", .net_namespace = "default", .cidr = "10.0.96.1/24"},
+    };
+
     QemuContext ctx;
     int port = 4444, snapshot = 0, mandatory = 0;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
@@ -162,12 +273,18 @@ int main(int argc, char *argv[])
     std::string lang = globals<std::string>(config, "globals", "language", "en");
     std::string model = globals<std::string>(config, "globals", "default_instance", "t1-small");
     std::string machine = globals<std::string>(config, "globals", "default_machine", "ubuntu-q35");
-    std::string bridge = globals<std::string>(config, "globals", "default_bridge", "br0");
-    std::string nspace = globals<std::string>(config, "globals", "default_netspace", "/proc/1/ns/net");
-    std::string brdgecidr = globals<std::string>(config, "globals", "default_bridge_cidr", "10.0.96.1/24");
     std::string disksize = globals<std::string>(config, "globals", "default_disk_size", "32g");
     std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
     std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
+    std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
+
+    struct NetworkDevice
+    {
+        std::string device;
+        std::string netspace;
+    };
+    std::vector<struct NetworkDevice> devices;
+
     std::vector<std::tuple<std::string, std::string>> stores = loadstores(config);
     if (stores.size() > 0)
     {
@@ -186,10 +303,16 @@ int main(int argc, char *argv[])
         models = md;
     }
 
+    std::vector<struct Network> nets = loadNetworks(config);
+    if (nets.size() > 0)
+    {
+        networks = nets;
+    }
+
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} -bridge {default=%s} -namespace {default=%s} -machine {default=%s} "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} "
                                          "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], model.c_str(), bridge.c_str(), nspace.c_str(), machine.c_str());
+                                         argv[0], model.c_str(), default_network.c_str(),  machine.c_str());
 
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
@@ -209,19 +332,64 @@ int main(int argc, char *argv[])
         {
             model = argv[i + 1];
 
-            if (std::string("?").compare(model) == 0) {
+            if (std::string("?").compare(model) == 0)
+            {
                 std::cout << "Available models: " << std::endl;
-                std::for_each(models.begin(), models.end(), [](const struct Model &mod) { 
-                    std::cout << mod << std::endl;
-                });
+                std::for_each(models.begin(), models.end(), [](const struct Model &mod)
+                              { std::cout << mod << std::endl; });
 
                 exit(EXIT_FAILURE);
             }
         }
 
-        if (std::string(argv[i]).find("-bridge") != std::string::npos && (i + 1 < argc))
+        if (std::string(argv[i]).find("-network") != std::string::npos && (i + 1 < argc))
         {
-            bridge = argv[i + 1];
+            std::string networkname = argv[i + 1];
+
+            if (std::string("?").compare(networkname) == 0)
+            {
+                std::cout << "Available networks: " << std::endl;
+                std::for_each(networks.begin(), networks.end(), [](const struct Network &net)
+                              { std::cout << net << std::endl; });
+
+                exit(EXIT_FAILURE);
+            }
+
+            auto it = std::find_if(networks.begin(), networks.end(), [&networkname](const struct Network &net)
+                                   { return net.name.compare(networkname) == 0; } );
+
+            if (it != networks.end())
+            {
+                QEMU_set_namespace((*it).net_namespace);
+
+                if ((*it).topology == NetworkTopology::Bridge)
+                {
+                    int bridgeresult = QEMU_allocate_bridge(m3_string_format("br-%s", (*it).name.c_str()));
+                    if (bridgeresult == 1)
+                    {
+                        std::cerr << "Bridge allocation error." << std::endl;
+                        exit(EXIT_FAILURE);
+                    }
+                    QEMU_link_up(m3_string_format("br-%s", (*it).name.c_str()));
+                    QEMU_set_interface_cidr(m3_string_format("br-%s", (*it).name.c_str()), (*it).cidr);
+                    std::string tapdevice = QEMU_allocate_tun(ctx);
+                    QEMU_link_up(tapdevice);
+                    QEMU_enslave_interface(m3_string_format("br-%s", (*it).name.c_str()), tapdevice);
+
+                    struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
+                    devices.push_back(netdevice);
+                }
+                if ((*it).topology == NetworkTopology::Macvtap)
+                {
+                    std::string tapdevice = QEMU_allocate_macvtap(ctx, (*it).interface);
+                    QEMU_link_up(tapdevice);
+
+                    struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
+                    devices.push_back(netdevice);
+                }
+
+                QEMU_set_default_namespace();
+            }
         }
 
         if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
@@ -308,19 +476,6 @@ int main(int argc, char *argv[])
             QEMU_ephimeral(ctx);
         }
 
-        if (std::string(argv[i]).find("-namespace") != std::string::npos && (i + 1 < argc))
-        {
-            nspace = m3_string_format("/var/run/netns/%s", argv[i + 1]);
-
-            // Check, that namespace eixsts
-            if (!fileExists(nspace.c_str()))
-            {
-                std::cerr << "Error: Namespace " << nspace << " does, not exist." << std::endl;
-                std::cout << usage << std::endl;
-                exit(EXIT_FAILURE);
-            }
-        }
-
         const std::string delimiter = "://";
         if (std::string(argv[i]).find(delimiter) != std::string::npos)
         {
@@ -390,19 +545,6 @@ int main(int argc, char *argv[])
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_notified_started(ctx);
-        QEMU_set_namespace(nspace);
-        int bridgeresult = QEMU_allocate_bridge(bridge);
-        if (bridgeresult == 1)
-        {
-            std::cerr << "Bridge allocation error." << std::endl;
-            exit(EXIT_FAILURE);
-        }
-        QEMU_link_up(bridge);
-        QEMU_set_interface_cidr(bridge, brdgecidr);
-        std::string tapdevice = QEMU_allocate_tun(ctx);
-        QEMU_link_up(tapdevice);
-        QEMU_enslave_interface(bridge, tapdevice);
-        QEMU_set_default_namespace();
 
         pid_t child = fork();
         if (child == 0)
@@ -415,9 +557,13 @@ int main(int argc, char *argv[])
             pid_t w = waitpid(child, &status, WUNTRACED | WCONTINUED);
             if (WIFEXITED(status))
             {
-                QEMU_set_namespace(nspace);
-                QEMU_delete_link(ctx, tapdevice);
-                QEMU_set_default_namespace();
+                std::for_each(
+                    devices.begin(), devices.end(), [&ctx](const struct NetworkDevice &net)
+                    {
+                        QEMU_set_namespace(net.netspace);
+                        QEMU_delete_link(ctx, net.device);
+                        QEMU_set_default_namespace(); });
+
                 QEMU_notified_exited(ctx);
             }
 

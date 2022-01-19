@@ -53,7 +53,7 @@ int QEMU_allocate_bridge(std::string bridge)
 
     if ((err = rtnl_link_alloc_cache(sk, AF_UNSPEC, &link_cache)) < 0)
     {
-        nl_perror(err, "Unable to allocate cache");
+        nl_perror(err, " cache");
         return err;
     }
 
@@ -289,7 +289,7 @@ int set_if_flags(const char *ifname, short flags)
     res = ioctl(skfd, SIOCSIFFLAGS, &ifr);
     if (res < 0)
     {
-        printf("Interface '%s': Error: SIOCSIFFLAGS failed: %s\n",
+        printf("set_if_flags '%s': Error: SIOCSIFFLAGS failed: %s\n",
                ifname, strerror(errno));
     }
     
@@ -521,3 +521,5 @@ int QEMU_OpenQGASocketFromPath(std::string &guestid)
     // t = recv(s, str, 4096, 0);
     return s;
 }
+
+

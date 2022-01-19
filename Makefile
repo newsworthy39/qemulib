@@ -3,7 +3,7 @@ obj = $(src:.cpp=.o)
 LDFLAGS = -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
 CXX=g++ -std=c++2a $(INC)
-PACKAGES=qemu-bridge qemu-tap qemu-interfaces qemu-powerdown
+PACKAGES=rogue qemu-interfaces qemu-powerdown
 BUILDDIR=build
 FLAGS=-o3
 
@@ -25,10 +25,7 @@ qemu-interfaces: main-interfaces.o src/qemu-manage.o src/qemu-hypervisor.o libra
 qemu-stop: main-stop.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
-qemu-bridge: main-bridge.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
-
-qemu-tap: main-tap.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
+rogue: main-bridge.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 src/qemu-link.cpp:
@@ -50,4 +47,4 @@ install: clean all
 	cp $(BUILDDIR)/* /home/gandalf/bin
 	
 uninstall:
-	rm -f /home/gandalf/bin/qemu-*
+	rm -f /home/gandalf/bin/qemu-* /home/gandalf/bin/rogue

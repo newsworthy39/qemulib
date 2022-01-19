@@ -2,13 +2,19 @@ globals:
   language: da
   default_instance: t1-medium
   default_machine: q35
-  default_bridge: br0
-  default_netspace: "/proc/1/ns/net"
-  default_bridge_cidr: 10.0.96.1/24
   default_disk_size: 64g
   default_datastore: default
   default_isostore: iso
-  default_interface: enp2s0
+  default_network: default
+networks:
+  - topology: bridge
+    cidr: 10.0.96.1/24
+    name: default
+    namespace: default
+  - topology: macvtap
+    interface: enp2s0
+    name: public
+    namespace: root
 datastores:
   - default: "/home/gandalf/vms"
   - cold: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
