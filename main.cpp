@@ -2,7 +2,7 @@
 #include <qemu-hypervisor.hpp>
 #include <qemu-link.hpp>
 #include <yaml-cpp/yaml.h>
-#include <qemu-bridge.hpp>
+#include <qemu.hpp>
 
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)

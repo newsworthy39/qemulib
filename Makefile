@@ -22,10 +22,7 @@ qemu-powerdown: main-powerdown.o  src/qemu-manage.o src/qemu-hypervisor.o librar
 qemu-interfaces: main-interfaces.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
-qemu-stop: main-stop.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
-
-rogue: main-bridge.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
+qemu: main.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 src/qemu-link.cpp:
@@ -47,4 +44,4 @@ install: clean all
 	cp $(BUILDDIR)/* /home/gandalf/bin
 	
 uninstall:
-	rm -f /home/gandalf/bin/qemu-* /home/gandalf/bin/rogue
+	rm -f /home/gandalf/bin/qemu-*
