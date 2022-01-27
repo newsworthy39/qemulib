@@ -33,6 +33,11 @@ std::string m3_string_format(const std::string &format, Args... args)
 template <class type>
 type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
 {
+    if (!configuration[section])
+    {
+        return defaults;
+    }
+
     YAML::Node global = configuration[section];
     return global[key].as<type>();
 }
@@ -49,8 +54,14 @@ type globals(YAML::Node &configuration, std::string section, std::string key, ty
 template <class t1, class t2>
 std::vector<std::tuple<t1, t2>> loadMapFromRegistry(YAML::Node &config, const std::string key)
 {
-    YAML::Node node = config[key];
     std::vector<std::tuple<t1, t2>> vec;
+    if (!config[key])
+    {
+        return vec;
+    }
+
+    YAML::Node node = config[key];
+
     if (node.Type() == YAML::NodeType::Sequence)
     {
         for (std::size_t i = 0; i < node.size(); i++)
@@ -68,6 +79,7 @@ std::vector<std::tuple<t1, t2>> loadMapFromRegistry(YAML::Node &config, const st
             }
         }
     }
+
     return vec;
 }
 
@@ -119,8 +131,13 @@ void operator>>(const YAML::Node &node, struct Model &model)
 std::vector<struct Model> loadModels(YAML::Node &config)
 {
     const std::string key = "models";
-    YAML::Node node = config[key];
     std::vector<struct Model> vec;
+    if (!config[key])
+    {
+        return vec;
+    }
+
+    YAML::Node node = config[key];
 
     std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
                   {
@@ -246,6 +263,8 @@ std::vector<struct Network> loadNetworks(YAML::Node &config)
  */
 int main(int argc, char *argv[])
 {
+
+    // Lots of defaults.
     std::vector<std::tuple<std::string, std::string>> drives{
         {"default", "ubuntu2004backingfile"},
     };
@@ -253,7 +272,7 @@ int main(int argc, char *argv[])
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", "/home/gandalf/vms"},
         {"tmp", "/tmp"},
-        {"iso", "/home/gandalf/Downloads/Applications"},
+        {"iso", "/home/gandalf/Applications"},
     };
 
     std::vector<struct Model> models = {
@@ -277,6 +296,10 @@ int main(int argc, char *argv[])
     std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
     std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
     std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
+    std::string usage = m3_string_format("usage(): %s (-help) (-config) (-headless) (-snapshot) -incoming {default=4444} "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} "
+                                         "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
+                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str());
 
     struct NetworkDevice
     {
@@ -308,11 +331,6 @@ int main(int argc, char *argv[])
     {
         networks = nets;
     }
-
-    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} "
-                                         "-iso cdrom -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], model.c_str(), default_network.c_str(),  machine.c_str());
 
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
@@ -356,7 +374,7 @@ int main(int argc, char *argv[])
             }
 
             auto it = std::find_if(networks.begin(), networks.end(), [&networkname](const struct Network &net)
-                                   { return net.name.compare(networkname) == 0; } );
+                                   { return net.name.compare(networkname) == 0; });
 
             if (it != networks.end())
             {
@@ -413,10 +431,17 @@ int main(int argc, char *argv[])
             }
 
             auto it = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
-                                   { return datastore.starts_with(std::get<0>(ct)); });
-
-            std::string drive = m3_string_format("%s/%s.iso", std::get<1>(*it).c_str(), drivename.c_str());
-            QEMU_iso(ctx, drive);
+                                   { return datastore.compare(std::get<0>(ct)) == 0; });
+            if (it != datastores.end())
+            {
+                std::string drive = m3_string_format("%s/%s.iso", std::get<1>(*it).c_str(), drivename.c_str());
+                QEMU_iso(ctx, drive);
+            }
+            else
+            {
+                std::cerr << "The iso-store " << datastore << ", was not found." << std::endl;
+                exit(-1);
+            }
         }
 
         // This allows us, to use different datastores, following this idea
@@ -533,7 +558,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        ctx.model = *models.begin();
+        ctx.model = *models.begin(); 
     }
 
     std::cout << "Using model: " << ctx.model.name << ", cpus: " << ctx.model.cpus << ", memory: " << ctx.model.memory << ", flags: " << ctx.model.flags << std::endl;
@@ -544,6 +569,7 @@ int main(int argc, char *argv[])
         QEMU_instance(ctx, lang);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
+
         QEMU_notified_started(ctx);
 
         pid_t child = fork();
