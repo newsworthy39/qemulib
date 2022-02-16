@@ -286,7 +286,8 @@ int main(int argc, char *argv[])
     };
 
     QemuContext ctx;
-    int port = 4444, snapshot = 0, mandatory = 0;
+    int port = 4444, snapshot = 0, mandatory = 0, registerdesktop = 0;
+    std::string instanceid;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
     std::string lang = globals<std::string>(config, "globals", "language", "en");
@@ -296,8 +297,8 @@ int main(int argc, char *argv[])
     std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
     std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
     std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
-    std::string usage = m3_string_format("usage(): %s (-help) (-config) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} "
+    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -register "
                                          "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str());
 
@@ -335,6 +336,12 @@ int main(int argc, char *argv[])
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
     {
+
+        if (std::string(argv[i]).find("-register") != std::string::npos)
+        {
+            registerdesktop = 1;
+        }
+
         if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
@@ -504,7 +511,7 @@ int main(int argc, char *argv[])
         const std::string delimiter = "://";
         if (std::string(argv[i]).find(delimiter) != std::string::npos)
         {
-            std::string instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+            instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
 
             auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
                                    { return instanceid.starts_with(std::get<0>(ct)); });
@@ -548,6 +555,21 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
+    if (registerdesktop == 1)
+    {
+        std::vector<std::string> arguments(argv, argv + argc);
+
+        const char *const delim = " ";
+        std::ostringstream imploded;
+        std::copy(arguments.begin(), arguments.end(),
+                  std::ostream_iterator<std::string>(imploded, delim));
+        std::string fmt(reinterpret_cast<char *>(resources_template_desktop));
+        std::ofstream desktopfile;
+        desktopfile.open(m3_string_format("/home/gandalf/.local/share/applications/qemu-%s.desktop", instanceid.c_str()));
+        desktopfile << m3_string_format(fmt, instanceid.c_str(), instanceid.c_str(), imploded.str().c_str()) << std::endl;
+        desktopfile.close();
+    }
+
     // Autoapply the Model.
     auto it = std::find_if(models.begin(), models.end(), [&model](const struct Model &line)
                            { return line.name.compare(model) == 0; });
@@ -558,7 +580,7 @@ int main(int argc, char *argv[])
     }
     else
     {
-        ctx.model = *models.begin(); 
+        ctx.model = *models.begin();
     }
 
     std::cout << "Using model: " << ctx.model.name << ", cpus: " << ctx.model.cpus << ", memory: " << ctx.model.memory << ", flags: " << ctx.model.flags << std::endl;

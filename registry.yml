@@ -18,14 +18,12 @@ networks:
 datastores:
   - default: "/home/gandalf/vms"
   - cold: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
-  - tmp: "/tmp"
   - iso: "/home/gandalf/Applications"
 images:
   - default: "/home/gandalf/vms/ubuntu2004backingfile.img"
   - ubuntu2004-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
   - meta: "/home/gandalf/vms/ubuntu2004-master.img"
-  - vip: "/home/gandalf/vms/ubuntu2004-master.img"
-  - hippogrif: "/home/gandalf/vms/ubuntu2004-master.img"
+  - testing: "/home/gandalf/vms/ubuntu2004-master.img"
 models:
   - name: t1-small
     memory: 1024

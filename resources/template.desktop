@@ -1,0 +1,8 @@
+[Desktop Entry]
+Name=QEMU %s
+Comment=Run %s as a GTK-windowed inside Qemu.
+Exec=pkexec env DISPLAY=$DISPLAY XAUTHORITY=$XAUTHORITY KDE_SESSION_VERSION=5 KDE_FULL_SESSION=true /home/gandalf/workspace/qemu/%s
+Icon=bluegriffon
+Terminal=false
+Type=Application
+Categories=System

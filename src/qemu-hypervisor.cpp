@@ -181,7 +181,7 @@ void QEMU_instance(QemuContext &ctx, const std::string language )
 }
 
 /**
- * QEMU_drive()
+ * int QEMU_drive(QemuContext &args, const std::string &drive)
  */
 int QEMU_drive(QemuContext &args, const std::string &drive)
 {
@@ -189,7 +189,7 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
     if (fileExists(drive))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", ++bootindex, drive.c_str(), blockdevice.c_str()));
+        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=16777216,id=%s", ++bootindex, drive.c_str(), blockdevice.c_str()));
         std::cout << "Using drive[" << bootindex << "]: " << drive << std::endl;
         return 0;
     }
@@ -201,7 +201,7 @@ int QEMU_drive(QemuContext &args, const std::string &drive)
 }
 
 /**
- * QEMU_drive()
+ * int QEMU_bootdrive(QemuContext &args, const std::string &drive)
  */
 int QEMU_bootdrive(QemuContext &args, const std::string &drive)
 {
