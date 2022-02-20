@@ -61,13 +61,13 @@ void QEMU_instance(QemuContext &ctx, const std::string language = "en");
  * QEMU_drive (QemuContext )
  * Installs a drive as the non-bootable drive (and data-drive).
  */
-int QEMU_drive(QemuContext &args, const std::string &drive);
+int QEMU_drive(QemuContext &args, const std::string &drivepath);
 
 /*
  * QEMU_bootdrive (QemuContext )
  * Installs a drive as the bootable drive (and os-drive).
  */
-int QEMU_bootdrive(QemuContext &args, const std::string &drive);
+int QEMU_bootdrive(QemuContext &args, const std::string &drivepath);
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)

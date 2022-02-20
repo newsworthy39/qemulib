@@ -181,40 +181,48 @@ void QEMU_instance(QemuContext &ctx, const std::string language )
 }
 
 /**
- * int QEMU_drive(QemuContext &args, const std::string &drive)
+ * @brief QEMU_drive registers a drive, with a limited bandwidth 16mbps pr drive.
+ * 
+ * @param args QemuContext
+ * @param drivepath The path to the drive
+ * @return int -1 on error. 0 on success.
  */
-int QEMU_drive(QemuContext &args, const std::string &drive)
+int QEMU_drive(QemuContext &args, const std::string &drivepath)
 {
     int bootindex = args.drives.size(); // thats better.
-    if (fileExists(drive))
+    if (fileExists(drivepath))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=16777216,id=%s", ++bootindex, drive.c_str(), blockdevice.c_str()));
-        std::cout << "Using drive[" << bootindex << "]: " << drive << std::endl;
+        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=16777216,id=%s", ++bootindex, drivepath.c_str(), blockdevice.c_str()));
+        std::cout << "Using drive[" << bootindex << "]: " << drivepath << std::endl;
         return 0;
     }
     else
     {
-        std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
+        std::cerr << "The drive " << drivepath << " does not exists: " << strerror(errno) << std::endl;
         return -1;
     }
 }
 
 /**
- * int QEMU_bootdrive(QemuContext &args, const std::string &drive)
+ * @brief Qemu_bootdrive, registers a boot-drive.
+ * 
+ * @param args QemuContext
+ * @param drivepath the path to the drive.
+ * @return int -1 on error. 0 on success.
  */
-int QEMU_bootdrive(QemuContext &args, const std::string &drive)
+int QEMU_bootdrive(QemuContext &args, const std::string &drivepath)
 {
-    if (fileExists(drive))
+    if (fileExists(drivepath))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=0,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", drive.c_str(), blockdevice.c_str()));
-        std::cout << "Using boot-drive[0]: " << drive << "." << std::endl;
+        PushDriveArgument(args, m2_string_format("if=virtio,index=0,file=%s,media=disk,format=qcow2,cache=writeback,id=%s", drivepath.c_str(), blockdevice.c_str()));
+        std::cout << "Using boot-drive[0]: " << drivepath << "." << std::endl;
         return 0;
     }
     else
     {
-        std::cerr << "The drive " << drive << " does not exists: " << strerror(errno) << std::endl;
+        std::cerr << "The drive " << drivepath << " does not exists: " << strerror(errno) << std::endl;
         return -1;
     }
 }

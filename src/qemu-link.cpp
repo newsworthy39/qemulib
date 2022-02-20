@@ -143,7 +143,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
     }
 
     std::cout << "Using network-device: " << link_name << ", mac: " << mac << std::endl;
-    
+
     PushArguments(ctx, "-netdev", m3_string_format("tap,id=%s,fd=%d,vhost=on", guestId.c_str(), fd));
     PushArguments(ctx, "-device", m3_string_format("virtio-net,mac=%s,netdev=%s", mac.c_str(), guestId.c_str()));
 
@@ -269,7 +269,6 @@ void QEMU_enslave_interface(std::string bridge, std::string interface)
     nl_close(sock);
 }
 
-
 int set_if_flags(const char *ifname, short flags)
 {
     struct ifreq ifr;
@@ -292,7 +291,7 @@ int set_if_flags(const char *ifname, short flags)
         printf("set_if_flags '%s': Error: SIOCSIFFLAGS failed: %s\n",
                ifname, strerror(errno));
     }
-    
+
 out:
     return res;
 }
@@ -302,7 +301,7 @@ std::string QEMU_get_interface_cidr(const std::string device)
     struct ifreq ifr;
     int res = 0;
     int skfd = -1; /* AF_INET socket for ioctl() calls.*/
-    
+
     strncpy(ifr.ifr_name, device.c_str(), IFNAMSIZ);
 
     if ((skfd = socket(AF_INET, SOCK_DGRAM, 0)) < 0)
@@ -341,13 +340,16 @@ std::string QEMU_get_interface_cidr(const std::string device)
 */
 uint32_t prefix2mask(int prefix)
 {
-	struct in_addr mask;
-	memset(&mask, 0, sizeof(mask));
-	if (prefix) {
-		return htonl(~((1 << (32 - prefix)) - 1));
-	} else {
-		return htonl(0);
-	}
+    struct in_addr mask;
+    memset(&mask, 0, sizeof(mask));
+    if (prefix)
+    {
+        return htonl(~((1 << (32 - prefix)) - 1));
+    }
+    else
+    {
+        return htonl(0);
+    }
 }
 
 /**
@@ -359,7 +361,7 @@ uint32_t prefix2mask(int prefix)
  */
 void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
 {
-    
+
     std::string address = cidr.substr(0, cidr.find("/"));
     std::string netmask = cidr.substr(cidr.find("/") + 1);
     int net = std::stoi(netmask);
@@ -387,6 +389,28 @@ void QEMU_set_namespace(std::string namespace_path)
     int nfd = open(namespace_path.c_str(), O_RDONLY);
     setns(nfd, CLONE_NEWNET);
     close(nfd);
+}
+
+/**
+ * @brief Qemu Enable Nat, enables postrouting chain on a CIDR specified.
+ * Since, IPtables doesn't have an API, this is the way you call it.
+ * @param cidr 
+ */
+void QEMU_iptables_set_masquerade(std::string cidr)
+{
+    std::string del = m3_string_format("/usr/sbin/iptables -t nat -D POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(),  cidr.c_str() );
+    std::string add = m3_string_format("/usr/sbin/iptables -t nat -A POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(),  cidr.c_str());
+    std::cout << "Using nat on " << cidr << std::endl;
+    system(del.c_str());
+    system(add.c_str());
+}
+
+void QEMU_set_router(bool on)
+{
+    std::ofstream myfile;
+    myfile.open("/proc/sys/net/ipv4/ip_forward");
+    myfile << on;
+    myfile.close();
 }
 
 /*
@@ -521,5 +545,3 @@ int QEMU_OpenQGASocketFromPath(std::string &guestid)
     // t = recv(s, str, 4096, 0);
     return s;
 }
-
-

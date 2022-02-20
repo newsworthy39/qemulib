@@ -24,6 +24,7 @@ struct Network {
     std::string name;
     std::string net_namespace;
     std::string cidr;
+    bool nat;
 };
 
 
