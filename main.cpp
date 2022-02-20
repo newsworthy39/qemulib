@@ -170,7 +170,7 @@ std::ostream &operator<<(std::ostream &os, const struct Network &net)
 }
 
 /**
- * @brief Operator overloading of the model <<, allowing it to be loaded
+ * @brief Operator overloading of the model >>, allowing it to be loaded
  * using standard operator functions, for readability.
  *
  * @param node
@@ -198,6 +198,10 @@ void operator>>(const YAML::Node &node, struct Network &net)
         else
         {
             std::cerr << "When using bridge-mode, cidr is required" << std::endl;
+        }
+        if (node["nat"])
+        {
+            net.nat = node["nat"].as<bool>();
         }
     }
     if (tp.compare("macvtap") == 0)
@@ -248,7 +252,7 @@ std::vector<struct Network> loadNetworks(YAML::Node &config)
 
     std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
                   {
-        struct Network network;
+        struct Network network  { .cidr = "10.0.96.2/24", .nat = true };
         node >> network;
         vec.push_back(network); });
 
@@ -367,6 +371,7 @@ int main(int argc, char *argv[])
             }
         }
 
+        // TODO: This is probably, not the best way now.
         if (std::string(argv[i]).find("-network") != std::string::npos && (i + 1 < argc))
         {
             std::string networkname = argv[i + 1];
@@ -400,6 +405,12 @@ int main(int argc, char *argv[])
                     std::string tapdevice = QEMU_allocate_tun(ctx);
                     QEMU_link_up(tapdevice);
                     QEMU_enslave_interface(m3_string_format("br-%s", (*it).name.c_str()), tapdevice);
+
+                    if ((*it).nat)
+                    {
+                        QEMU_set_router((*it).nat);
+                        QEMU_iptables_set_masquerade((*it).cidr);
+                    }
 
                     struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
                     devices.push_back(netdevice);
