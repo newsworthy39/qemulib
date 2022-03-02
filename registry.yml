@@ -29,7 +29,6 @@ images:
   - meta: "/home/gandalf/vms/ubuntu2004-master.img"
   - testing: "/home/gandalf/vms/biggun-master.img"
   - dhcp: "/home/gandalf/vms/ubuntu2004-master.img"
-
 models:
   - name: t1-small
     memory: 1024
