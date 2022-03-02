@@ -353,16 +353,14 @@ uint32_t prefix2mask(int prefix)
 }
 
 /**
- * @brief QEMU_set_interface_cidr
+ * @brief QEMU_set_interface_address
  * Sets the network cidr. Also. Its shit. Never mind.
  *
  * @param name the interface.
  * @param cidr the cidr.
  */
-void QEMU_set_interface_cidr(const std::string device, const std::string cidr)
+void QEMU_set_interface_address(const std::string device, const std::string address, const std::string cidr)
 {
-
-    std::string address = cidr.substr(0, cidr.find("/"));
     std::string netmask = cidr.substr(cidr.find("/") + 1);
     int net = std::stoi(netmask);
 

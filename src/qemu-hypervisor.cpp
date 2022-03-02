@@ -2,16 +2,17 @@
 
 /**
  * @brief Overloads section
- * 
+ *
  */
 
-std::ostream& operator<<(std::ostream &os, const struct Model &model) {
+std::ostream &operator<<(std::ostream &os, const struct Model &model)
+{
     os << model.name << ", " << model.cpus << " cpus and " << model.memory << " MB with host-flags: " << model.flags << ", architecture: " << model.arch;
     return os;
 }
 
 /**
- * Helper functions 
+ * Helper functions
  */
 // https://stackoverflow.com/questions/2342162/stdstring-formatting-like-sprintf
 template <typename... Args>
@@ -149,7 +150,7 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port)
  * QEMU_init (int memory, int numcpus)
  * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
  */
-void QEMU_instance(QemuContext &ctx, const std::string language )
+void QEMU_instance(QemuContext &ctx, const std::string language)
 {
     std::string guestid = QEMU_reservation_id(ctx);
 
@@ -168,21 +169,21 @@ void QEMU_instance(QemuContext &ctx, const std::string language )
     PushArguments(ctx, "-device", "virtio-serial");
     PushArguments(ctx, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0");
 
-    PushArguments(ctx, "-m", m2_string_format("%d", ctx.model.memory));                                                        // memory
+    PushArguments(ctx, "-m", m2_string_format("%d", ctx.model.memory));                                                                               // memory
     PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d,threads=1,dies=1", ctx.model.cpus, ctx.model.cpus, ctx.model.cpus * 2)); // cpu setup.
     PushArguments(ctx, "-cpu", ctx.model.flags);
 
-    //AuthenticIntel)
-    //CPU="-cpu host,kvm=on,vendor=GenuineIntel,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt";;
-    //AuthenticAMD|*)
+    // AuthenticIntel)
+    // CPU="-cpu host,kvm=on,vendor=GenuineIntel,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt";;
+    // AuthenticAMD|*)
     //# Used in past versions: +movbe,+smep,+xgetbv1,+xsavec
     //# Warn on AMD:           +fma4,+pcid
-    //CPU="-cpu Penryn,kvm=on,vendor=GenuineIntel,+aes,+avx,+avx2,+bmi1,+bmi2,+fma,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt,+popcnt,+ssse3,+sse4.2,vmware-cpuid-freq=on,+xsave,+xsaveopt,check";;
+    // CPU="-cpu Penryn,kvm=on,vendor=GenuineIntel,+aes,+avx,+avx2,+bmi1,+bmi2,+fma,+hypervisor,+invtsc,+kvm_pv_eoi,+kvm_pv_unhalt,+popcnt,+ssse3,+sse4.2,vmware-cpuid-freq=on,+xsave,+xsaveopt,check";;
 }
 
 /**
  * @brief QEMU_drive registers a drive, with a limited bandwidth 16mbps pr drive.
- * 
+ *
  * @param args QemuContext
  * @param drivepath The path to the drive
  * @return int -1 on error. 0 on success.
@@ -206,7 +207,7 @@ int QEMU_drive(QemuContext &args, const std::string &drivepath)
 
 /**
  * @brief Qemu_bootdrive, registers a boot-drive.
- * 
+ *
  * @param args QemuContext
  * @param drivepath the path to the drive.
  * @return int -1 on error. 0 on success.
@@ -233,7 +234,8 @@ int QEMU_bootdrive(QemuContext &args, const std::string &drivepath)
  */
 void QEMU_allocate_drive(std::string path, std::string sz)
 {
-    if (!fileExists(QEMU_DEFAULT_IMG)) {
+    if (!fileExists(QEMU_DEFAULT_IMG))
+    {
         std::cerr << QEMU_DEFAULT_IMG << " is missing" << std::endl;
         exit(-1);
     }
@@ -292,7 +294,7 @@ void QEMU_allocate_backed_drive(std::string path, std::string sz, std::string ba
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfile.c_str()));
         left_argv.push_back(const_cast<char *>(path.c_str()));
-        left_argv.push_back(const_cast<char *>( sz.c_str()));
+        left_argv.push_back(const_cast<char *>(sz.c_str()));
         left_argv.push_back(NULL); // leave a null
 
         execvp(left_argv[0], &left_argv[0]); // we'll never return from this, unless an error occurs.
@@ -402,13 +404,14 @@ void QEMU_ephimeral(QemuContext &ctx)
  * QEMU_launch()
  * This launches a hypervisor.
  */
-void QEMU_launch(QemuContext &ctx, bool block , const std::string hypervisor )
+void QEMU_launch(QemuContext &ctx, bool block, const std::string hypervisor)
 {
-    if (!fileExists(hypervisor)) {
+    if (!fileExists(hypervisor))
+    {
         std::cerr << hypervisor << " is missing." << std::endl;
         exit(-1);
     }
-    
+
     // check to daemonize
     if (block == false)
         PushDeviceArgument(ctx, "-daemonize");
@@ -431,8 +434,7 @@ void QEMU_launch(QemuContext &ctx, bool block , const std::string hypervisor )
                   { 
                       
                       left_argv.push_back(const_cast<char *>("-drive")); 
-                      left_argv.push_back(const_cast<char *>(drive.c_str())); 
-                  });
+                      left_argv.push_back(const_cast<char *>(drive.c_str())); });
 
     // We leave a null, to indicate EOF.
     left_argv.push_back(NULL); // leave a null
@@ -449,7 +451,6 @@ void QEMU_launch(QemuContext &ctx, bool block , const std::string hypervisor )
  */
 void QEMU_notified_started(QemuContext &ctx)
 {
-
 }
 
 /**
@@ -490,9 +491,9 @@ void QEMU_notified_exited(QemuContext &ctx)
  * Sets the cloud-init arguments-source
  * // serial=ds=nocloud-net;s=http://10.10.0.1:8000/
  */
-void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src)
+void QEMU_cloud_init_network(QemuContext &ctx, std::string cloud_settings_src)
 {
-    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud-net;s=%s", cloud_settings_src.c_str()));
+    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud-net;s=%s", cloud_settings_src.c_str()));
 }
 
 /**
@@ -502,17 +503,36 @@ void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src)
  */
 void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string instance_id)
 {
-    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud;h=%s;i=%s;s=file:///tmp/seed", hostname.c_str(), instance_id.c_str()));
+    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s;s=file:///tmp/seed", hostname.c_str(), instance_id.c_str()));
 }
 
 /**
- * QEMU_Cluod_init_arguments
- * Removes any cloud-init arguments
- * serial=ds=None
+ * @brief QEMU_cloud_init_default
+ * sets a default cloud-init with a instance-id and a hostname.
+ * value=cloud-init:ds=nocloud;
+ * 
+ * @param ctx QemuContext
+ * @param instanceid the instanceid.
  */
-void QEMU_cloud_init_remove(QemuContext &ctx)
+void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid)
 {
-    PushArguments(ctx, "-smbios", "type=1,serial=ds=None");
+    std::size_t str_hash = std::hash<std::string>{}(instanceid);
+    std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
+    std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
+
+    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s", hostname.c_str(), instanceid.c_str()));
+}
+
+/**
+ * @brief QEMU_oemstring
+ * Sets additional oemstrings for a vm.
+ * @param ctx QemuContext
+ * @param oemstrings std::vector<std::string> 
+ */
+void QEMU_oemstring(QemuContext &ctx, std::vector<std::string> oemstrings)
+{
+    std::for_each(oemstrings.begin(), oemstrings.end(), [&ctx](const std::string &oemstring)
+                  { PushArguments(ctx, "-smbios", m2_string_format("type=11,value=%s", oemstring.c_str())); });
 }
 
 /**
@@ -522,14 +542,24 @@ void QEMU_cloud_init_remove(QemuContext &ctx)
  */
 void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid)
 {
-    PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud;h=%s;i=%s", hostname.c_str(), instanceid.c_str()));
+    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s,value=dhcp-server:network=10.0.96.0/24,value=dhcp-server:router=10.0.96.1,value=dhcp-server:domain-name=test.local", hostname.c_str(), instanceid.c_str()));
+}
+
+/**
+ * QEMU_Cluod_init_arguments
+ * Removes any cloud-init arguments
+ * serial=ds=None
+ */
+void QEMU_cloud_init_remove(QemuContext &ctx)
+{
+    PushArguments(ctx, "-smbios", "type=11,value=cloud-init:ds=None");
 }
 
 /**
  * QEMU_get_pid
  * get pid of running hypervisor.
  */
-pid_t QEMU_get_pid(std::string &reservationid )
+pid_t QEMU_get_pid(std::string &reservationid)
 {
     std::string str_pid = m2_string_format("/tmp/%s.pid", reservationid.c_str());
     pid_t pid;
@@ -540,12 +570,15 @@ pid_t QEMU_get_pid(std::string &reservationid )
     return pid;
 }
 
-std::vector<std::string> QEMU_get_reservations() {
+std::vector<std::string> QEMU_get_reservations()
+{
     std::vector<std::string> vec;
     std::string path = "/tmp";
-    for (const auto & entry : std::filesystem::directory_iterator(path)) {
+    for (const auto &entry : std::filesystem::directory_iterator(path))
+    {
         std::string path = entry.path();
-        if (path.find(".pid") != std::string::npos) {
+        if (path.find(".pid") != std::string::npos)
+        {
             vec.push_back(path.substr(5, path.find(".pid") - 5));
         }
     }

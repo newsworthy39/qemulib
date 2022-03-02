@@ -148,7 +148,7 @@ std::string QEMU_reservation_id(QemuContext &ctx);
  * QEMU_Notify_started
  * Sets the cloud-init arguments source
  */
-void QEMU_cloud_init_arguments(QemuContext &ctx, std::string cloud_settings_src);
+void QEMU_cloud_init_network(QemuContext &ctx, std::string cloud_settings_src);
 
 /**
  * QEMU_Notify_started
@@ -167,7 +167,16 @@ void QEMU_cloud_init_remove(QemuContext &ctx);
  * QEMU_cloud_init_default
  * serial=ds=None
  */
-void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid);
+void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid);
+
+/**
+ * @brief QEMU_oemstrings
+ * adds and sets oem-strings inside the bios for a VM.
+ * 
+ * @param ctx QemuContext
+ * @param oemstrings  std::vector<std::string> formatted as the value={}-part.
+ */
+void QEMU_oemstring(QemuContext &ctx, std::vector<std::string> oemstrings);
 
 bool fileExists(const std::string &filename);
 

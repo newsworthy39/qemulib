@@ -182,6 +182,7 @@ void operator>>(const YAML::Node &node, struct Network &net)
     std::string tp = node["topology"].as<std::string>();
     net.name = node["name"].as<std::string>();
     net.net_namespace = "default";
+    net.router = "10.0.92.1";
 
     if (node["namespace"])
     {
@@ -202,6 +203,9 @@ void operator>>(const YAML::Node &node, struct Network &net)
         if (node["nat"])
         {
             net.nat = node["nat"].as<bool>();
+        }
+        if (node["router"]) {
+            net.router = node["router"].as<std::string>();
         }
     }
     if (tp.compare("macvtap") == 0)
@@ -286,7 +290,7 @@ int main(int argc, char *argv[])
     };
 
     std::vector<struct Network> networks = {
-        {.topology = NetworkTopology::Bridge, .name = "default", .net_namespace = "default", .cidr = "10.0.96.1/24"},
+        {.topology = NetworkTopology::Bridge, .name = "default", .net_namespace = "default", .cidr = "10.0.96.0/24", .router = "10.0.96.1"},
     };
 
     QemuContext ctx;
@@ -401,7 +405,7 @@ int main(int argc, char *argv[])
                         exit(EXIT_FAILURE);
                     }
                     QEMU_link_up(m3_string_format("br-%s", (*it).name.c_str()));
-                    QEMU_set_interface_cidr(m3_string_format("br-%s", (*it).name.c_str()), (*it).cidr);
+                    QEMU_set_interface_address(m3_string_format("br-%s", (*it).name.c_str()), (*it).router, (*it).cidr);
                     std::string tapdevice = QEMU_allocate_tun(ctx);
                     QEMU_link_up(tapdevice);
                     QEMU_enslave_interface(m3_string_format("br-%s", (*it).name.c_str()), tapdevice);
@@ -414,6 +418,14 @@ int main(int argc, char *argv[])
 
                     struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
                     devices.push_back(netdevice);
+
+                    // Finally add Oemstrings
+                    std::vector<std::string> oemstrings;
+                    oemstrings.push_back(m3_string_format("dhcp-server:network=%s", (*it).cidr.c_str()));
+                    oemstrings.push_back(m3_string_format("dhcp-server:router=%s", (*it).router.c_str()));
+                    oemstrings.push_back("dhcp-server:domain-name=test.home");
+
+                    QEMU_oemstring(ctx, oemstrings);
                 }
                 if ((*it).topology == NetworkTopology::Macvtap)
                 {
@@ -551,11 +563,7 @@ int main(int argc, char *argv[])
 
             QEMU_bootdrive(ctx, absdrive); // root-disk, is allways id=0.
 
-            std::size_t str_hash = std::hash<std::string>{}(instanceid);
-            std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
-            std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
-
-            QEMU_cloud_init_default(ctx, hostname, instance);
+            QEMU_cloud_init_default(ctx, instanceid);
         }
     }
 
@@ -584,7 +592,7 @@ int main(int argc, char *argv[])
     // Autoapply the Model.
     auto it = std::find_if(models.begin(), models.end(), [&model](const struct Model &line)
                            { return line.name.compare(model) == 0; });
-
+    // These oem-strings, could belong to imageids.
     if (it != models.end())
     {
         ctx.model = *it;

@@ -37,7 +37,7 @@ int QEMU_tun_allocate(const std::string device);
 int QEMU_link_up(const std::string ifname);
 void QEMU_set_namespace(std::string namespace_path);
 void QEMU_set_default_namespace();
-void QEMU_set_interface_cidr(const std::string device, const std::string cidr);
+void QEMU_set_interface_address(const std::string device, const std::string address, const std::string cidr);
 std::string QEMU_get_interface_cidr(const std::string device);
 void QEMU_iptables_set_masquerade(std::string cidr);
 void QEMU_set_router(bool on);

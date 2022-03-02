@@ -9,7 +9,8 @@ globals:
 networks:
   - name: default
     topology: bridge
-    cidr: 10.0.96.1/24
+    cidr: 10.0.96.0/24
+    router: 10.0.96.1
     namespace: default
     nat: true
   - name: public
@@ -24,8 +25,11 @@ datastores:
 images:
   - default: "/home/gandalf/vms/ubuntu2004backingfile.img"
   - ubuntu2004-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
+  - biggun-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
   - meta: "/home/gandalf/vms/ubuntu2004-master.img"
-  - testing: "/home/gandalf/vms/ubuntu2004-master.img"
+  - testing: "/home/gandalf/vms/biggun-master.img"
+  - dhcp: "/home/gandalf/vms/ubuntu2004-master.img"
+
 models:
   - name: t1-small
     memory: 1024
