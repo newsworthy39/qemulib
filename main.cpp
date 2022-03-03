@@ -95,14 +95,22 @@ std::vector<std::tuple<std::string, std::string>> loadstores(YAML::Node &config)
 }
 
 /**
- * @brief loadimages from yaml config (registry.yaml)
+ * @brief Operator overloading of the model <<, allowing it to be loaded
+ * using standard operator functions, for readability.
  *
- * @param config
- * @return std::vector<std::tuple<std::string, std::string>>
+ * @param node
+ * @param model
  */
-std::vector<std::tuple<std::string, std::string>> loadimages(YAML::Node &config)
+void operator>>(const YAML::Node &node, struct Image &model)
 {
-    return loadMapFromRegistry<std::string, std::string>(config, "images");
+    model.name = node["name"].as<std::string>();
+    model.datastore = node["datastore"].as<std::string>();
+    if (node["backingimage"])
+        model.backingimage = node["backingimage"].as<std::string>();
+    if (node["filename"])
+        model.filename = node["filename"].as<std::string>();
+    if (node["size"])
+        model.sz = node["size"].as<std::string>();
 }
 
 /**
@@ -119,54 +127,6 @@ void operator>>(const YAML::Node &node, struct Model &model)
     model.cpus = node["cpus"].as<int>();
     model.arch = node["arch"].as<std::string>();
     model.flags = node["flags"].as<std::string>();
-}
-
-/**
- * @brief loadModels(YAML::Node &config).
- * Loads CPU Models from the YAML-configuration.
- *
- * @param config
- * @return std::vector<struct Model>
- */
-std::vector<struct Model> loadModels(YAML::Node &config)
-{
-    const std::string key = "models";
-    std::vector<struct Model> vec;
-    if (!config[key])
-    {
-        return vec;
-    }
-
-    YAML::Node node = config[key];
-
-    std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
-                  {
-        struct Model model;
-        node >> model;
-        vec.push_back(model); });
-
-    return vec;
-}
-
-std::ostream &operator<<(std::ostream &os, const struct Network &net)
-{
-    switch (net.topology)
-    {
-    case NetworkTopology::Bridge:
-    {
-        os << "Bridge network association: " << net.name << " network " << net.cidr;
-    }
-    break;
-    case NetworkTopology::Macvtap:
-    {
-        os << "Macvtap network association: " << net.name << ", master interface " << net.interface << ", mode: " << net.macvtapmode;
-    }
-    break;
-    }
-
-    os << ", namespace " << net.net_namespace;
-
-    return os;
 }
 
 /**
@@ -204,7 +164,8 @@ void operator>>(const YAML::Node &node, struct Network &net)
         {
             net.nat = node["nat"].as<bool>();
         }
-        if (node["router"]) {
+        if (node["router"])
+        {
             net.router = node["router"].as<std::string>();
         }
     }
@@ -242,26 +203,31 @@ void operator>>(const YAML::Node &node, struct Network &net)
 }
 
 /**
- * @brief loadModels(YAML::Node &config).
- * Loads CPU Models from the YAML-configuration.
+ * @brief loadimages from yaml config (registry.yaml)
  *
  * @param config
- * @return std::vector<struct Model>
+ * @return std::vector<std::tuple<std::string, std::string>>
  */
-std::vector<struct Network> loadNetworks(YAML::Node &config)
+template <class T>
+std::vector<T> loadModel(YAML::Node &config, const std::string key, const T defaultModel)
 {
-    const std::string key = "networks";
-    YAML::Node node = config[key];
-    std::vector<struct Network> vec;
+    std::vector<T> vec;
+    if (!config[key])
+    {
+        return vec;
+    }
 
-    std::for_each(node.begin(), node.end(), [&vec](const struct YAML::Node &node)
-                  {
-        struct Network network  { .cidr = "10.0.96.2/24", .nat = true };
-        node >> network;
-        vec.push_back(network); });
+    YAML::Node node = config[key];
+
+    std::for_each(node.begin(), node.end(), [&vec, &defaultModel](const struct YAML::Node &node) {
+        T model = defaultModel;
+        node >> model;
+        vec.push_back(model); 
+    });
 
     return vec;
 }
+
 /**
  * @brief main. Default program EP.
  *
@@ -272,14 +238,26 @@ std::vector<struct Network> loadNetworks(YAML::Node &config)
 int main(int argc, char *argv[])
 {
 
-    // Lots of defaults.
-    std::vector<std::tuple<std::string, std::string>> drives{
-        {"default", "ubuntu2004backingfile"},
-    };
+    QemuContext ctx;
+    int port = 4444, snapshot = 0, mandatory = 0, registerdesktop = 0;
+    std::string instanceid;
+    QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
+    YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
+    std::string lang = globals<std::string>(config, "globals", "language", "en");
+    std::string model = globals<std::string>(config, "globals", "default_instance", "t1-small");
+    std::string machine = globals<std::string>(config, "globals", "default_machine", "ubuntu-q35");
+    std::string default_disk_size = globals<std::string>(config, "globals", "default_disk_size", "32g");
+    std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
+    std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
+    std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
+    std::string default_domainname = globals<std::string>(config, "globals", "default_domainname", "local");
+    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -register "
+                                         "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
+                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", "/home/gandalf/vms"},
-        {"tmp", "/tmp"},
         {"iso", "/home/gandalf/Applications"},
     };
 
@@ -292,23 +270,6 @@ int main(int argc, char *argv[])
     std::vector<struct Network> networks = {
         {.topology = NetworkTopology::Bridge, .name = "default", .net_namespace = "default", .cidr = "10.0.96.0/24", .router = "10.0.96.1"},
     };
-
-    QemuContext ctx;
-    int port = 4444, snapshot = 0, mandatory = 0, registerdesktop = 0;
-    std::string instanceid;
-    QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
-    YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
-    std::string lang = globals<std::string>(config, "globals", "language", "en");
-    std::string model = globals<std::string>(config, "globals", "default_instance", "t1-small");
-    std::string machine = globals<std::string>(config, "globals", "default_machine", "ubuntu-q35");
-    std::string disksize = globals<std::string>(config, "globals", "default_disk_size", "32g");
-    std::string default_datastore = globals<std::string>(config, "globals", "default_datastore", "default");
-    std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
-    std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
-    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -register "
-                                         "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str());
 
     struct NetworkDevice
     {
@@ -323,19 +284,19 @@ int main(int argc, char *argv[])
         datastores = stores;
     }
 
-    std::vector<std::tuple<std::string, std::string>> images = loadimages(config);
-    if (images.size() > 0)
+    // load Image from registry.yml
+    struct Image defaultImage { .sz = default_disk_size };
+    std::vector<struct Image> images = loadModel<struct Image>(config, "images", defaultImage);
+
+    struct Model defaultModel {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"};
+    std::vector<struct Model> mo = loadModel<struct Model>(config, "models", defaultModel);
+    if (mo.size() > 0)
     {
-        drives = images;
+        models = mo;
     }
 
-    std::vector<struct Model> md = loadModels(config);
-    if (md.size() > 0)
-    {
-        models = md;
-    }
-
-    std::vector<struct Network> nets = loadNetworks(config);
+    struct Network defaultNetworkModel { .cidr = "10.0.96.2/24", .nat = true };
+    std::vector<struct Network> nets = loadModel<struct Network>(config, "networks", defaultNetworkModel);
     if (nets.size() > 0)
     {
         networks = nets;
@@ -423,10 +384,10 @@ int main(int argc, char *argv[])
                     std::vector<std::string> oemstrings;
                     oemstrings.push_back(m3_string_format("dhcp-server:network=%s", (*it).cidr.c_str()));
                     oemstrings.push_back(m3_string_format("dhcp-server:router=%s", (*it).router.c_str()));
-                    oemstrings.push_back("dhcp-server:domain-name=test.home");
-
+                    oemstrings.push_back(m3_string_format("dhcp-server:domain-name=%s", default_domainname.c_str()));
                     QEMU_oemstring(ctx, oemstrings);
                 }
+
                 if ((*it).topology == NetworkTopology::Macvtap)
                 {
                     std::string tapdevice = QEMU_allocate_macvtap(ctx, (*it).interface);
@@ -492,26 +453,26 @@ int main(int argc, char *argv[])
                                    { return datastore.starts_with(std::get<0>(ct)); });
             datastore = std::get<1>(*dt);
 
-            auto it = std::find_if(drives.begin(), drives.end(), [&drivename](const std::tuple<std::string, std::string> &ct)
-                                   { return drivename.starts_with(std::get<0>(ct)); });
+            auto it = std::find_if(images.begin(), images.end(), [&drivename](const struct Image &ct)
+                                   { return drivename.starts_with(ct.name); });
 
             std::string absdrive = m3_string_format("%s/%s.img", datastore.c_str(), drivename.c_str());
 
-            if (it != drives.end())
+            if (it != images.end())
             {
-                std::tuple<std::string, std::string> conf = *it;
-                std::string backingdrive = std::get<1>(conf);
+                struct Image conf = *it;
+                std::string backingdrive = conf.backingimage;
 
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_backed_drive(absdrive, disksize, backingdrive);
+                    QEMU_allocate_backed_drive(absdrive, default_disk_size, backingdrive);
                 }
             }
-            else // if backing-file was found, simply blank a disksize drive.
+            else // if backing-file was *NOT* found, simply blank a default_disk_size drive.
             {
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_drive(absdrive, disksize);
+                    QEMU_allocate_drive(absdrive, default_disk_size);
                 }
             }
 
@@ -536,40 +497,42 @@ int main(int argc, char *argv[])
         {
             instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
 
-            auto it = std::find_if(drives.begin(), drives.end(), [&instanceid](const std::tuple<std::string, std::string> &ct)
-                                   { return instanceid.starts_with(std::get<0>(ct)); });
+            auto it = std::find_if(images.begin(), images.end(), [&instanceid](const struct Image &ct)
+                                   { return instanceid.starts_with(ct.name); });
 
-            std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(datastores.front()).c_str(), instanceid.c_str());
-
-            if (it != drives.end())
+            if (it != images.end())
             {
-                std::tuple<std::string, std::string> conf = *it;
-                std::string backingdrive = std::get<1>(conf);
+                struct Image conf = *it;
 
-                if (!fileExists(absdrive))
+                auto datastore = std::find_if(datastores.begin(), datastores.end(), [it](const std::tuple<std::string, std::string> &store)
+                                              { return std::get<0>(store) == it->datastore; });
+
+                auto backingImage = std::find_if(images.begin(), images.end(), [it](const struct Image &image)
+                                                 { return it->backingimage == image.name; });
+
+                auto backingImageDatastore = std::find_if(datastores.begin(), datastores.end(), [backingImage](const std::tuple<std::string, std::string> &store)
+                                                          { return std::get<0>(store) == backingImage->datastore; });
+
+                std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(*datastore).c_str(), instanceid.c_str());
+                std::string absbackingfilename = m3_string_format("%s/%s", std::get<1>(*backingImageDatastore).c_str(), backingImage->filename.c_str());
+
+                if (!conf.backingimage.empty() && fileExists(absbackingfilename))
                 {
-                    QEMU_allocate_backed_drive(absdrive, disksize, backingdrive);
+                    QEMU_allocate_backed_drive(absdrive, default_disk_size, absbackingfilename);
                 }
+                QEMU_bootdrive(ctx, absdrive);
+                QEMU_cloud_init_default(ctx, instanceid);
+                mandatory = 1;
             }
-            else // if backing-file was found, simply blank a disksize drive.
+            else
             {
-                if (!fileExists(absdrive))
-                {
-                    QEMU_allocate_drive(absdrive, disksize);
-                }
+                std::cerr << "Image not defined." << std::endl;
             }
-
-            mandatory = 1;
-
-            QEMU_bootdrive(ctx, absdrive); // root-disk, is allways id=0.
-
-            QEMU_cloud_init_default(ctx, instanceid);
         }
     }
 
     if (mandatory == 0)
     {
-        std::cerr << "Error: Missing mandatory fields" << std::endl;
         std::cout << usage << std::endl;
         exit(EXIT_FAILURE);
     }

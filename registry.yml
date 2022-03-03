@@ -6,6 +6,7 @@ globals:
   default_datastore: default
   default_isostore: iso
   default_network: default
+  default_domainname: test.home
 networks:
   - name: default
     topology: bridge
@@ -18,17 +19,21 @@ networks:
     topology: macvtap
     namespace: root
 datastores:
-  - default: "/home/gandalf/vms"
-  - cold: "/media/gandalf/da3e8718-0b61-44d6-8553-1f0c1cf89c4d"
-  - fast: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
+  - default: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
+  - slow: "/media/gandalf/da3e8718-0b61-44d6-8553-1f0c1cf89c4d"
   - iso: "/home/gandalf/Applications"
 images:
-  - default: "/home/gandalf/vms/ubuntu2004backingfile.img"
-  - ubuntu2004-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
-  - biggun-master: "/home/gandalf/vms/ubuntu2004backingfile.img"
-  - meta: "/home/gandalf/vms/ubuntu2004-master.img"
-  - testing: "/home/gandalf/vms/biggun-master.img"
-  - dhcp: "/home/gandalf/vms/ubuntu2004-master.img"
+  - name: default
+    datastore: default 
+    filename: ubuntu2004backingfile.img
+  - name: ubuntu2004-master
+    datastore: default
+    backingimage: default
+    filename: ubuntu2004-master.img
+  - name: dhcp
+    datastore: slow
+    backingimage: ubuntu2004-master
+    size: 32g
 models:
   - name: t1-small
     memory: 1024
