@@ -491,26 +491,20 @@ void QEMU_notified_exited(QemuContext &ctx)
  * Sets the cloud-init arguments-source
  * // serial=ds=nocloud-net;s=http://10.10.0.1:8000/
  */
-void QEMU_cloud_init_network(QemuContext &ctx, std::string cloud_settings_src)
+void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, const std::string cloud_settings_src)
 {
-    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud-net;s=%s", cloud_settings_src.c_str()));
-}
+    std::size_t str_hash = std::hash<std::string>{}(instanceid);
+    std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
+    std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
 
-/**
- * QEMU_Cluod_init_arguments
- * Sets the cloud-init arguments-source
- * // serial=ds=nocloud-net;s=http://10.10.0.1:8000/
- */
-void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string instance_id)
-{
-    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s;s=file:///tmp/seed", hostname.c_str(), instance_id.c_str()));
+    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud-net;h=%s;i=%s;s=%s", hostname.c_str(), instanceid.c_str(), cloud_settings_src.c_str()));
 }
 
 /**
  * @brief QEMU_cloud_init_default
  * sets a default cloud-init with a instance-id and a hostname.
  * value=cloud-init:ds=nocloud;
- * 
+ *
  * @param ctx QemuContext
  * @param instanceid the instanceid.
  */
@@ -527,22 +521,12 @@ void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid)
  * @brief QEMU_oemstring
  * Sets additional oemstrings for a vm.
  * @param ctx QemuContext
- * @param oemstrings std::vector<std::string> 
+ * @param oemstrings std::vector<std::string>
  */
 void QEMU_oemstring(QemuContext &ctx, std::vector<std::string> oemstrings)
 {
     std::for_each(oemstrings.begin(), oemstrings.end(), [&ctx](const std::string &oemstring)
                   { PushArguments(ctx, "-smbios", m2_string_format("type=11,value=%s", oemstring.c_str())); });
-}
-
-/**
- * QEMU_cloud_init_default
- * Removes any cloud-init arguments
- * serial=ds=None
- */
-void QEMU_cloud_init_default(QemuContext &ctx, std::string hostname, std::string instanceid)
-{
-    PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s,value=dhcp-server:network=10.0.96.0/24,value=dhcp-server:router=10.0.96.1,value=dhcp-server:domain-name=test.local", hostname.c_str(), instanceid.c_str()));
 }
 
 /**

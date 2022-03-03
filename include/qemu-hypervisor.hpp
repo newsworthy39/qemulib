@@ -148,13 +148,7 @@ std::string QEMU_reservation_id(QemuContext &ctx);
  * QEMU_Notify_started
  * Sets the cloud-init arguments source
  */
-void QEMU_cloud_init_network(QemuContext &ctx, std::string cloud_settings_src);
-
-/**
- * QEMU_Notify_started
- * Sets the cloud-init arguments source
- */
-void QEMU_cloud_init_file(QemuContext &ctx, std::string hostname, std::string instance_id);
+void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, const std::string cloud_settings_src);
 
 /**
  * QEMU_Cluod_init_arguments
@@ -167,7 +161,7 @@ void QEMU_cloud_init_remove(QemuContext &ctx);
  * QEMU_cloud_init_default
  * serial=ds=None
  */
-void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid);
+void QEMU_cloud_init_default(QemuContext &ctx, const std::string instanceid);
 
 /**
  * @brief QEMU_oemstrings
