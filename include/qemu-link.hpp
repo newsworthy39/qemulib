@@ -29,8 +29,8 @@ void QEMU_delete_link(QemuContext &ctx, std::string interface);
 
 int QEMU_OpenQMPSocket(QemuContext &ctx);
 int QEMU_OpenQMPSocketFromPath(std::string &guestid);
-
 int QEMU_OpenQGASocketFromPath(std::string &guestid);
+
 int QEMU_allocate_bridge(std::string bridge);
 void QEMU_enslave_interface(std::string bridge, std::string slave);
 int QEMU_tun_allocate(const std::string device);

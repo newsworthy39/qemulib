@@ -3,7 +3,7 @@ obj = $(src:.cpp=.o)
 LDFLAGS = -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
 CXX=g++ -std=c++2a $(INC)
-PACKAGES=xd qemu qemu-interfaces qemu-powerdown
+PACKAGES=xd qemu qemu-interfaces qemu-powerdown qemu-metadataservice
 BUILDDIR=build
 FLAGS=-o3
 
@@ -26,6 +26,9 @@ qemu-interfaces: main-interfaces.o src/qemu-manage.o src/qemu-hypervisor.o libra
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 qemu: main.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o 
+	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
+
+qemu-metadataservice: main-metadataservice.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 src/qemu-link.cpp:

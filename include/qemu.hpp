@@ -34,6 +34,9 @@ struct Image {
     std::string backingimage;
     std::string filename;
     std::string sz;
+    std::string media;
+    size_t bpstotal;
+    std::string cloudinit;
 };
 
 
@@ -61,5 +64,5 @@ std::ostream &operator<<(std::ostream &os, const struct Network &net)
 // the desktop-template
 extern unsigned char resources_template_desktop[];
 extern unsigned int resources_template_desktop_len;
-
+unsigned int generate_random_cid();
 #endif

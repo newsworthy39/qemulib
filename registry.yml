@@ -1,12 +1,15 @@
 globals:
   language: da
-  default_instance: t1-medium
+  default_instance: c1-smaller
   default_machine: q35
   default_disk_size: 64g
   default_datastore: default
   default_isostore: iso
   default_network: default
   default_domainname: test.home
+  default_bpstotal: 16777216
+  default_registry: "https://raw.githubusercontent.com/newsworthy39/cloud-recipe/master"
+  default_profile: dhcp
 networks:
   - name: default
     topology: bridge
@@ -26,14 +29,35 @@ images:
   - name: default
     datastore: default 
     filename: ubuntu2004backingfile.img
+    media: disc
   - name: ubuntu2004-master
     datastore: default
     backingimage: default
     filename: ubuntu2004-master.img
-  - name: dhcp
-    datastore: slow
+    media: disc
+  - name: dhcp-master
+    datastore: default
     backingimage: ubuntu2004-master
     size: 32g
+    media: disc
+    bps-total: 16777216
+  - name: dhcp
+    datastore: slow
+    backingimage: dhcp-master
+    size: 32g
+    media: disc
+    bps-total: 16777216
+  - name: ami-master
+    datastore: default
+    backingimage: ubuntu2004-master
+    size: 32g
+    media: disc
+  - name: ami
+    datastore: slow
+    backingimage: ami-master
+    size: 32g
+    media: disc
+    bps-total: 16777216
 models:
   - name: t1-small
     memory: 1024
@@ -85,4 +109,5 @@ models:
     cpus: 8
     flags: host    
     arch: amd64
-      
+
+    

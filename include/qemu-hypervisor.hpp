@@ -67,7 +67,7 @@ int QEMU_drive(QemuContext &args, const std::string &drivepath);
  * QEMU_bootdrive (QemuContext )
  * Installs a drive as the bootable drive (and os-drive).
  */
-int QEMU_bootdrive(QemuContext &args, const std::string &drivepath);
+int QEMU_bootdrive(QemuContext &args, const std::string &drivepath, size_t bpstotal);
 
 /*
  * QEMU_machine (QemuContext &args, const std::string model)
@@ -188,12 +188,32 @@ std::string generatePrefixedUniqueString(std::string prefix, std::size_t hash, u
  * QEMU_get_pid
  * get pid of running hypervisor.
  */
-pid_t QEMU_get_pid(std::string &reservationid);
+pid_t QEMU_get_pid(const std::string &reservationid);
+
+/**
+ * @brief QEMU_get_cid
+ * Returns a CID of a guest, belonging to the reservation.
+ * 
+ * @param reservationid 
+ * @return const unsigned int 
+ */
+const unsigned int QEMU_getcid(const std::string &reservationid);
 
 /**
  * @brief QEMU_get_reservations()
  * @returns std::vector<std::string>
  */
 std::vector<std::string> QEMU_get_reservations();
+
+/**
+ * @brief QEMU_vsock
+ * This creates a vmware-like vmci/vsock-virtio af_vsock interface.
+ * 
+ * @param ctx 
+ * @param identifer 
+ */
+void QEMU_vsock(QemuContext &ctx, const unsigned int cid);
+
+
 
 #endif

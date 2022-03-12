@@ -4,6 +4,15 @@
 #include <yaml-cpp/yaml.h>
 #include <qemu.hpp>
 
+unsigned int generate_random_cid()
+{
+    static std::random_device rd;
+    // Choose a random mean between 1 and 6
+    std::default_random_engine e1(rd());
+    std::uniform_int_distribution<int> uniform_dist(1, 4294967294);
+    return (unsigned int)uniform_dist(e1);
+}
+
 template <typename... Args>
 std::string m3_string_format(const std::string &format, Args... args)
 {
@@ -33,13 +42,14 @@ std::string m3_string_format(const std::string &format, Args... args)
 template <class type>
 type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
 {
-    if (!configuration[section])
+    if (configuration[section] )
     {
-        return defaults;
+        YAML::Node global = configuration[section];
+        if (global[key])
+            return global[key].as<type>();
     }
 
-    YAML::Node global = configuration[section];
-    return global[key].as<type>();
+    return (type)defaults;
 }
 
 /**
@@ -95,7 +105,7 @@ std::vector<std::tuple<std::string, std::string>> loadstores(YAML::Node &config)
 }
 
 /**
- * @brief Operator overloading of the model <<, allowing it to be loaded
+ * @brief Operator overloading of the model Image. allowing it to be loaded
  * using standard operator functions, for readability.
  *
  * @param node
@@ -111,6 +121,10 @@ void operator>>(const YAML::Node &node, struct Image &model)
         model.filename = node["filename"].as<std::string>();
     if (node["size"])
         model.sz = node["size"].as<std::string>();
+    if (node["media"])
+        model.media = node["media"].as<std::string>();
+    if (node["bps-total"])
+        model.bpstotal = node["bps-total"].as<size_t>();
 }
 
 /**
@@ -219,11 +233,11 @@ std::vector<T> loadModel(YAML::Node &config, const std::string key, const T defa
 
     YAML::Node node = config[key];
 
-    std::for_each(node.begin(), node.end(), [&vec, &defaultModel](const struct YAML::Node &node) {
+    std::for_each(node.begin(), node.end(), [&vec, &defaultModel](const struct YAML::Node &node)
+                  {
         T model = defaultModel;
         node >> model;
-        vec.push_back(model); 
-    });
+        vec.push_back(model); });
 
     return vec;
 }
@@ -243,6 +257,7 @@ int main(int argc, char *argv[])
     std::string instanceid;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
+    std::string default_profile = globals<std::string>(config, "globals", "default_profile", "false");
     std::string lang = globals<std::string>(config, "globals", "language", "en");
     std::string model = globals<std::string>(config, "globals", "default_instance", "t1-small");
     std::string machine = globals<std::string>(config, "globals", "default_machine", "ubuntu-q35");
@@ -251,10 +266,12 @@ int main(int argc, char *argv[])
     std::string default_isostore = globals<std::string>(config, "globals", "default_isostore", "iso");
     std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
     std::string default_domainname = globals<std::string>(config, "globals", "default_domainname", "local");
+    std::string default_registry = globals<std::string>(config, "globals", "default_registry", "none");
+    size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -register "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} -register "
                                          "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str());
+                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", "/home/gandalf/vms"},
@@ -285,17 +302,27 @@ int main(int argc, char *argv[])
     }
 
     // load Image from registry.yml
-    struct Image defaultImage { .sz = default_disk_size };
+    struct Image defaultImage
+    {
+        .sz = default_disk_size, .media = "disc", .bpstotal = bpstotal
+    };
     std::vector<struct Image> images = loadModel<struct Image>(config, "images", defaultImage);
 
-    struct Model defaultModel {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"};
+    // load Models from registry.yml
+    struct Model defaultModel
+    {
+        .name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"
+    };
     std::vector<struct Model> mo = loadModel<struct Model>(config, "models", defaultModel);
     if (mo.size() > 0)
     {
         models = mo;
     }
 
-    struct Network defaultNetworkModel { .cidr = "10.0.96.2/24", .nat = true };
+    struct Network defaultNetworkModel
+    {
+        .cidr = "10.0.96.2/24", .nat = true
+    };
     std::vector<struct Network> nets = loadModel<struct Network>(config, "networks", defaultNetworkModel);
     if (nets.size() > 0)
     {
@@ -306,15 +333,76 @@ int main(int argc, char *argv[])
     for (int i = 1; i < argc; ++i)
     {
 
-        if (std::string(argv[i]).find("-register") != std::string::npos)
-        {
-            registerdesktop = 1;
-        }
-
         if (std::string(argv[i]).find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
+        }
+
+        // We'll need to go through everything first
+        const std::string delimiter = "://";
+        if (std::string(argv[i]).find(delimiter) != std::string::npos)
+        {
+            instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+
+            auto it = std::find_if(images.begin(), images.end(), [&instanceid](const struct Image &ct)
+                                   { return instanceid.starts_with(ct.name); });
+
+            if (it != images.end())
+            {
+                // Find the datastore, where it belongs.
+                // If not found, find the default datastore.
+                auto datastore = std::find_if(datastores.begin(), datastores.end(), [it](const std::tuple<std::string, std::string> &store)
+                                              { return std::get<0>(store) == it->datastore; });
+
+                std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(*datastore).c_str(), instanceid.c_str());
+
+                if (datastore == datastores.end())
+                {
+                    auto def_datastore = std::find_if(datastores.begin(), datastores.end(), [default_datastore](const std::tuple<std::string, std::string> &store)
+                                                      { return std::get<0>(store) == default_datastore; });
+
+                    absdrive = m3_string_format("%s/%s.img", std::get<1>(*def_datastore).c_str(), instanceid.c_str());
+                }
+
+                // Next, find the backingImage.
+                auto backingImage = std::find_if(images.begin(), images.end(), [it](const struct Image &image)
+                                                 { return it->backingimage == image.name; });
+
+                auto backingImageDatastore = std::find_if(datastores.begin(), datastores.end(), [backingImage](const std::tuple<std::string, std::string> &store)
+                                                          { return std::get<0>(store) == backingImage->datastore; });
+
+                std::string absbackingfilename = m3_string_format("%s/%s", std::get<1>(*backingImageDatastore).c_str(), backingImage->filename.c_str());
+                if (backingImage->filename.empty())
+                {
+                    absbackingfilename = m3_string_format("%s/%s.img", std::get<1>(*backingImageDatastore).c_str(), backingImage->name.c_str());
+                }
+
+                // If a size was specified, use that - or use the default.
+                std::string size = default_disk_size;
+                if (!it->sz.empty())
+                {
+                    size = it->sz;
+                }
+
+                if (!it->backingimage.empty() && fileExists(absbackingfilename))
+                {
+                    QEMU_allocate_backed_drive(absdrive, size, absbackingfilename);
+                }
+
+                QEMU_bootdrive(ctx, absdrive, it->bpstotal);
+
+                mandatory = 1;
+            }
+            else
+            {
+                std::cerr << "Image not defined." << std::endl;
+            }
+        }
+
+        if (std::string(argv[i]).find("-register") != std::string::npos)
+        {
+            registerdesktop = 1;
         }
 
         if (std::string(argv[i]).find("-headless") != std::string::npos)
@@ -336,6 +424,35 @@ int main(int argc, char *argv[])
             }
         }
 
+        if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
+        {
+            machine = argv[i + 1];
+        }
+
+        if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
+        {
+            QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
+        }
+
+        if (std::string(argv[i]).find("-snapshot") != std::string::npos)
+        {
+            QEMU_ephimeral(ctx);
+        }
+        if (std::string(argv[i]).find("-profile") != std::string::npos && (i + 1 < argc))
+        {
+            default_profile = argv[i + 1];
+        }
+    }
+
+    if (mandatory == 0)
+    {
+        std::cout << usage << std::endl;
+        exit(EXIT_FAILURE);
+    }
+
+    // Remember argv[0] is the path to the program, we want from argv[1] onwards
+    for (int i = 1; i < argc; ++i)
+    {
         // TODO: This is probably, not the best way now.
         if (std::string(argv[i]).find("-network") != std::string::npos && (i + 1 < argc))
         {
@@ -385,7 +502,14 @@ int main(int argc, char *argv[])
                     oemstrings.push_back(m3_string_format("dhcp-server:network=%s", (*it).cidr.c_str()));
                     oemstrings.push_back(m3_string_format("dhcp-server:router=%s", (*it).router.c_str()));
                     oemstrings.push_back(m3_string_format("dhcp-server:domain-name=%s", default_domainname.c_str()));
+
                     QEMU_oemstring(ctx, oemstrings);
+
+                    // TODO: Make this better.
+                    if (!default_profile.starts_with("false"))
+                    {
+                        QEMU_cloud_init_network(ctx, instanceid, m3_string_format("%s/%s/", default_registry.c_str(), default_profile.c_str()));
+                    }
                 }
 
                 if ((*it).topology == NetworkTopology::Macvtap)
@@ -399,11 +523,6 @@ int main(int argc, char *argv[])
 
                 QEMU_set_default_namespace();
             }
-        }
-
-        if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
-        {
-            machine = argv[i + 1];
         }
 
         if (std::string(argv[i]).find("-iso") != std::string::npos && (i + 1 < argc))
@@ -462,10 +581,15 @@ int main(int argc, char *argv[])
             {
                 struct Image conf = *it;
                 std::string backingdrive = conf.backingimage;
+                std::string size = default_disk_size;
+                if (!it->sz.empty())
+                {
+                    size = it->sz;
+                }
 
                 if (!fileExists(absdrive))
                 {
-                    QEMU_allocate_backed_drive(absdrive, default_disk_size, backingdrive);
+                    QEMU_allocate_backed_drive(absdrive, size, backingdrive);
                 }
             }
             else // if backing-file was *NOT* found, simply blank a default_disk_size drive.
@@ -481,60 +605,6 @@ int main(int argc, char *argv[])
                 exit(EXIT_FAILURE);
             }
         }
-
-        if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
-        {
-            QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
-        }
-
-        if (std::string(argv[i]).find("-snapshot") != std::string::npos)
-        {
-            QEMU_ephimeral(ctx);
-        }
-
-        const std::string delimiter = "://";
-        if (std::string(argv[i]).find(delimiter) != std::string::npos)
-        {
-            instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
-
-            auto it = std::find_if(images.begin(), images.end(), [&instanceid](const struct Image &ct)
-                                   { return instanceid.starts_with(ct.name); });
-
-            if (it != images.end())
-            {
-                struct Image conf = *it;
-
-                auto datastore = std::find_if(datastores.begin(), datastores.end(), [it](const std::tuple<std::string, std::string> &store)
-                                              { return std::get<0>(store) == it->datastore; });
-
-                auto backingImage = std::find_if(images.begin(), images.end(), [it](const struct Image &image)
-                                                 { return it->backingimage == image.name; });
-
-                auto backingImageDatastore = std::find_if(datastores.begin(), datastores.end(), [backingImage](const std::tuple<std::string, std::string> &store)
-                                                          { return std::get<0>(store) == backingImage->datastore; });
-
-                std::string absdrive = m3_string_format("%s/%s.img", std::get<1>(*datastore).c_str(), instanceid.c_str());
-                std::string absbackingfilename = m3_string_format("%s/%s", std::get<1>(*backingImageDatastore).c_str(), backingImage->filename.c_str());
-
-                if (!conf.backingimage.empty() && fileExists(absbackingfilename))
-                {
-                    QEMU_allocate_backed_drive(absdrive, default_disk_size, absbackingfilename);
-                }
-                QEMU_bootdrive(ctx, absdrive);
-                QEMU_cloud_init_default(ctx, instanceid);
-                mandatory = 1;
-            }
-            else
-            {
-                std::cerr << "Image not defined." << std::endl;
-            }
-        }
-    }
-
-    if (mandatory == 0)
-    {
-        std::cout << usage << std::endl;
-        exit(EXIT_FAILURE);
     }
 
     if (registerdesktop == 1)
@@ -573,8 +643,8 @@ int main(int argc, char *argv[])
         QEMU_instance(ctx, lang);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
-
         QEMU_notified_started(ctx);
+        QEMU_vsock(ctx, generate_random_cid());
 
         pid_t child = fork();
         if (child == 0)
