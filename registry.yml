@@ -8,7 +8,7 @@ globals:
   default_network: default
   default_domainname: test.home
   default_bpstotal: 16777216
-  default_registry: "https://raw.githubusercontent.com/newsworthy39/cloud-recipe/master"
+  default_registry: "https://raw.githubusercontent.com/redcathedral/cloud-recipe/main"
   default_profile: dhcp
 networks:
   - name: default
