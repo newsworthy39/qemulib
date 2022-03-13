@@ -1,0 +1,5 @@
+# qemulib
+ Library to easily create/manage vms.
+
+# Registry
+ A Registry allows for definitions, of networks, images, profiles etc.
