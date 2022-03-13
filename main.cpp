@@ -506,7 +506,7 @@ int main(int argc, char *argv[])
                     QEMU_oemstring(ctx, oemstrings);
 
                     // TODO: Make this better.
-                    if (!default_profile.starts_with("false"))
+                    if (!(default_profile.starts_with("false") || default_registry.starts_with("false")))
                     {
                         QEMU_cloud_init_network(ctx, instanceid, m3_string_format("%s/%s/", default_registry.c_str(), default_profile.c_str()));
                     }
