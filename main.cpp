@@ -641,6 +641,7 @@ int main(int argc, char *argv[])
     if (daemon == 0)
     {
         QEMU_instance(ctx, lang);
+        QEMU_user(ctx, "gandalf");
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_notified_started(ctx);

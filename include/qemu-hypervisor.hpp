@@ -214,6 +214,14 @@ std::vector<std::string> QEMU_get_reservations();
  */
 void QEMU_vsock(QemuContext &ctx, const unsigned int cid);
 
+/**
+ * @brief QEMU_User 
+ * sets the user, the instance is supposed to run under.
+ * 
+ * @param ctx A valid QemuContext.
+ * @param user a username matching /etc/passwd
+ */
+void QEMU_user(QemuContext &ctx, const std::string user) ;
 
 
 #endif

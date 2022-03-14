@@ -170,6 +170,17 @@ void QEMU_vsock(QemuContext &ctx, const unsigned int cid) {
 
 }
 
+/**
+ * @brief QEMU_User 
+ * sets the user, the instance is supposed to run under.
+ * 
+ * @param ctx A valid QemuContext.
+ * @param user a username matching /etc/passwd
+ */
+void QEMU_user(QemuContext &ctx, const std::string user) {
+    PushArguments(ctx, "-runas", user);
+}
+
 /*
  * QEMU_init (int memory, int numcpus)
  * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
@@ -178,7 +189,7 @@ void QEMU_instance(QemuContext &ctx, const std::string language)
 {
     std::string guestid = QEMU_reservation_id(ctx);
 
-    PushArguments(ctx, "-runas", "gandalf");
+    
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", language);
