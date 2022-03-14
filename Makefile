@@ -1,15 +1,11 @@
-src = $(wildcard *.cpp)
-obj = $(src:.cpp=.o)
-LDFLAGS = -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
 INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
 CXX=g++ -std=c++2a $(INC)
-PACKAGES=xd qemu qemu-interfaces qemu-powerdown qemu-metadataservice 
 BUILDDIR=build
 FLAGS=-o3
 
 .PHONY: clean
 
-all: checkdirs $(PACKAGES) build_examples
+all: checkdirs xd libqemu.a libjson.a build_examples
 
 checkdirs: $(BUILDDIR)
 
@@ -22,17 +18,12 @@ build_examples:
 xd: 
 	/usr/bin/xxd -i resources/template.desktop > include/xxd.hpp
 
-qemu-powerdown: main-powerdown.o  src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
+libqemu.a: src/qemu-link.o src/qemu-hypervisor.o src/qemu-manage.o
+	ar -r -o $(BUILDDIR)/$@ $^
 
-qemu-interfaces: main-interfaces.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
+libjson.a: libraries/json11/json11.o
+	ar -r -o $(BUILDDIR)/$@ $^ 
 
-qemu: main.o src/qemu-manage.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o 
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
-
-qemu-metadataservice: main-metadataservice.o src/qemu-hypervisor.o libraries/json11/json11.o src/qemu-link.o
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 src/qemu-link.cpp:
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
