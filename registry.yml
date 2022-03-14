@@ -55,7 +55,7 @@ images:
   - name: ami
     datastore: slow
     backingimage: ami-master
-    size: 32g
+    size: 64g
     media: disc
     bps-total: 16777216
 models:
