@@ -5,7 +5,7 @@ FLAGS=-o3
 
 .PHONY: clean
 
-all: checkdirs xd libqemu.a libjson.a build_examples
+all: checkdirs libqemu.a libjson.a build_examples
 
 checkdirs: $(BUILDDIR)
 
@@ -14,9 +14,6 @@ $(BUILDDIR):
 
 build_examples: 
 	$(MAKE) -C examples 
-
-xd: 
-	/usr/bin/xxd -i resources/template.desktop > include/xxd.hpp
 
 libqemu.a: src/qemu-link.o src/qemu-hypervisor.o src/qemu-manage.o
 	ar -r -o $(BUILDDIR)/$@ $^
