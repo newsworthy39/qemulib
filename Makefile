@@ -37,9 +37,3 @@ libraries/json11/json11.cpp:
 clean:
 	rm -rf *.o $(BUILDDIR) src/*.o 
 	$(MAKE) -C examples clean
-
-install: uninstall clean all 
-	cp $(BUILDDIR)/* /home/gandalf/bin
-	
-uninstall:
-	rm -f /home/gandalf/bin/qemu-*

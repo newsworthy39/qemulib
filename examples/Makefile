@@ -30,7 +30,11 @@ qemu-metadataservice: main-metadataservice.o
 qemu: main.o
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
-
-
 clean:
 	rm -rf *.o $(BUILDDIR) src/*.o 
+
+install: uninstall clean all 
+	cp $(BUILDDIR)/* /home/gandalf/bin
+	
+uninstall:
+	rm -f /home/gandalf/bin/qemu-*

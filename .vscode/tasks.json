@@ -35,13 +35,13 @@
 		},
 		{
 			"type": "shell",
-			"label": "install (user)",
+			"label": "install (examples)",
 			"command": "make",
 			"args": [
 				"install"
 			],
 			"options": {
-				"cwd": "${workspaceFolder}"
+				"cwd": "${workspaceFolder}/examples"
 			},
 			"group": {
 				"kind": "build",
