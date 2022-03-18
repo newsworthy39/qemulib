@@ -40,3 +40,11 @@ example of zero-network host-to-guest communication.
 ## Main-powerdown.cpp
 An example of how to use modern c++ idioms, from STL to iterate a vector of reservations and issue QMP-commands, controlling a vm.
 In this case, to powerdown (acpi-power).
+
+# Build
+Requires Make, g++ and the ability, to build with c++20 flag. 
+
+*Run 'Make' in the root-directory*
+
+_This builds a static-library, that used is used to link into the examples,
+that serve as primitive test-bed._
