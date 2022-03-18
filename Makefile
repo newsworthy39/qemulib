@@ -1,5 +1,4 @@
-INC=-Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
-CXX=g++ -std=c++2a $(INC)
+CXX=g++ -std=c++2a -Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include
 BUILDDIR=build
 FLAGS=-o3
 
@@ -20,19 +19,6 @@ libqemu.a: src/qemu-link.o src/qemu-hypervisor.o src/qemu-manage.o
 
 libjson.a: libraries/json11/json11.o
 	ar -r -o $(BUILDDIR)/$@ $^ 
-
-
-src/qemu-link.cpp:
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
-
-src/qemu-hypervisor.cpp:
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
-
-src/qemu-manage.cpp:
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
-
-libraries/json11/json11.cpp: 
-	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)	
 
 clean:
 	rm -rf *.o $(BUILDDIR) src/*.o 
