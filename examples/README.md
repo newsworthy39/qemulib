@@ -25,6 +25,7 @@ but can be modified to different architectures. This focuses on a debian variant
 * QMP-socket, for advanced interaction (see qemu-manage-cpp)
 * "Reservations" for vm identification and management.
 * vhost-networking, for near-line speed.
+* Cloud-init switches for cloud-init recipes booting additional management frameworks using NoCloud-net.
 
 ## Main-metadataservice.cpp
 An example of how to use VMware(r) contributed AF_VSOCK to communicate through a pci-device in a packet-manner 
