@@ -44,7 +44,7 @@ In this case, to powerdown (acpi-power).
 # Build
 Requires Make, g++ and the ability, to build with c++20 flag. 
 
-*Run 'Make' in the root-directory*
+Run 'Make' in the root-directory
 
 _This builds a static-library, that used is used to link into the examples,
 that serve as primitive test-bed._
