@@ -37,5 +37,5 @@ This examples uses the notion of reservations to identify and target single vm q
 example of zero-network host-to-guest communication.
 
 ## Main-powerdown.cpp
-An example of how to use modern c++ idioms, from STL to iterate a vector of reservations and issue QMP-commands, contrilling a vm.
+An example of how to use modern c++ idioms, from STL to iterate a vector of reservations and issue QMP-commands, controlling a vm.
 In this case, to powerdown (acpi-power).
