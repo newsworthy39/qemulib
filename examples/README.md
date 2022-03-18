@@ -13,7 +13,7 @@ An test-bed and tool to start VMs of a commandline. Uses JSON and Yaml to create
 with backing-files allowing for hierarchial storage. Single Host-only. Although a '-accept'
 flag, has been added, no teleporting of VMS through a single-host and this cli-tool is available.
 This tool allows for a standard built-pc, with urandom pci-devices, and zero-network configuration-tools
-but can be modified to different architectures. This focuses on a debian variant called and amd64-architectures.
+but can be modified to different architectures. This focuses on a debian variant and amd64-architectures.
 
 
 * Hierarchical storage
