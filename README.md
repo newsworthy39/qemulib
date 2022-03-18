@@ -4,7 +4,9 @@
 # Example directory
 as QEMUlib grows, examples will include different cpp tools, that serve
 both as a test-bed, and as example-documentation outside of the documentation
-directory.
+directory. Inside the Example-directory as additional documentation of the
+individual tools/test-beds and showcases different usages of qemu-lib.
+
 
 # Build
 Requires Make, g++ and the ability, to build with c++20 flag. 
