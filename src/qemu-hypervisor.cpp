@@ -120,7 +120,27 @@ void PushArguments(QemuContext &ctx, std::string key, std::string value)
     PushDeviceArgument(ctx, value);
 }
 
+/**
+ * @brief QEMU_reservation_id
+ * returns the uuidv4 reservationid
+ * @param ctx QemuContext
+ * @return std::string
+ */
 std::string QEMU_reservation_id(QemuContext &ctx)
+{
+    if (ctx.reservationid.length() == 0)
+        ctx.reservationid = m2_generate_uuid_v4();
+
+    return ctx.reservationid;
+}
+
+/**
+ * @brief QEMU_instanceID
+ * returns the instance name of the guest (the friendly name)
+ * @param ctx QEMUContext
+ * @return std::string
+ */
+const std::string QEMU_instanceid(QemuContext &ctx)
 {
     auto it = std::find_if(ctx.devices.begin(), ctx.devices.end(), [&ctx](const std::string &ct)
                            { return "-name" == ct; });
@@ -129,13 +149,27 @@ std::string QEMU_reservation_id(QemuContext &ctx)
     {
         return *++(it); // return the next field.
     }
-    else
+
+    return "";
+}
+
+/**
+ * @brief QEMU_getuser
+ * returns the user, that the guest runs as.
+ * @param ctx
+ * @return std::string
+ */
+std::string QEMU_getuser(QemuContext &ctx)
+{
+    auto it = std::find_if(ctx.devices.begin(), ctx.devices.end(), [&ctx](const std::string &ct)
+                           { return "-runas" == ct; });
+
+    if (it != ctx.devices.end())
     {
-        std::string id = m2_generate_uuid_v4();
-        PushArguments(ctx, "-name", id);
-        std::cout << "Using reservation-id: " << id << std::endl;
-        return id;
+        return *++(it); // return the next field.
     }
+
+    return "root";
 }
 
 /**
@@ -149,11 +183,12 @@ void QEMU_Accept_Incoming(QemuContext &ctx, int port)
 /**
  * @brief QEMU_vsock
  * This creates a vmware-like vmci/vsock-virtio af_vsock interface.
- * 
- * @param ctx 
- * @param identifer 
+ *
+ * @param ctx
+ * @param identifer
  */
-void QEMU_vsock(QemuContext &ctx, const unsigned int cid) {
+void QEMU_vsock(QemuContext &ctx, const unsigned int cid)
+{
     std::cout << "Using vsock" << std::endl;
     // This could be vhost-sock metadataservice.
     PushArguments(ctx, "-device", m2_string_format("vhost-vsock-pci,id=vhost-vsock-pci0,guest-cid=%u", cid));
@@ -167,17 +202,17 @@ void QEMU_vsock(QemuContext &ctx, const unsigned int cid) {
     file.open(cidfile.c_str());
     file << cid;
     file.close();
-
 }
 
 /**
- * @brief QEMU_User 
+ * @brief QEMU_User
  * sets the user, the instance is supposed to run under.
- * 
+ *
  * @param ctx A valid QemuContext.
  * @param user a username matching /etc/passwd
  */
-void QEMU_user(QemuContext &ctx, const std::string user) {
+void QEMU_user(QemuContext &ctx, const std::string user)
+{
     PushArguments(ctx, "-runas", user);
 }
 
@@ -185,11 +220,12 @@ void QEMU_user(QemuContext &ctx, const std::string user) {
  * QEMU_init (int memory, int numcpus)
  * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
  */
-void QEMU_instance(QemuContext &ctx, const std::string language)
+void QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language)
 {
     std::string guestid = QEMU_reservation_id(ctx);
 
-    
+    PushArguments(ctx, "-name", instanceid);
+
     PushArguments(ctx, "-watchdog", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", language);
@@ -205,10 +241,10 @@ void QEMU_instance(QemuContext &ctx, const std::string language)
     PushArguments(ctx, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0");
 
     // This is the QEMU META-DATA SERVICE
-    //PushArguments(ctx, "-device", "virtio-serial");
-    //PushArguments(ctx, "-chardev", m2_string_format("socket,path=/tmp/qms-%s.socket,server=on,wait=off,telnet=off,id=qms0", guestid.c_str()));
-    //PushArguments(ctx, "-device", "virtserialport,chardev=qms0,name=org.qemu.metadata_service.0");
-    
+    // PushArguments(ctx, "-device", "virtio-serial");
+    // PushArguments(ctx, "-chardev", m2_string_format("socket,path=/tmp/qms-%s.socket,server=on,wait=off,telnet=off,id=qms0", guestid.c_str()));
+    // PushArguments(ctx, "-device", "virtserialport,chardev=qms0,name=org.qemu.metadata_service.0");
+
     PushArguments(ctx, "-m", m2_string_format("%d", ctx.model.memory));                                                                               // memory
     PushArguments(ctx, "-smp", m2_string_format("cpus=%d,cores=%d,maxcpus=%d,threads=1,dies=1", ctx.model.cpus, ctx.model.cpus, ctx.model.cpus * 2)); // cpu setup.
     PushArguments(ctx, "-cpu", ctx.model.flags);
@@ -491,6 +527,15 @@ void QEMU_launch(QemuContext &ctx, bool block, const std::string hypervisor)
  */
 void QEMU_notified_started(QemuContext &ctx)
 {
+    std::string instanceid = QEMU_instanceid(ctx);
+    std::string guestid = QEMU_reservation_id(ctx);
+
+    // Leave a message in /tmp/reservationid.instanceid (this allows us to use QEMU_isntanceid from the reservationid)
+    std::string str_instance = m2_string_format("/tmp/%s.instance", guestid.c_str());
+    std::ofstream instancefile;
+    instancefile.open(str_instance.c_str());
+    instancefile << instanceid;
+    instancefile.close();
 }
 
 /**
@@ -509,6 +554,7 @@ void QEMU_notified_exited(QemuContext &ctx)
     paths.push_back(m2_string_format("/tmp/qga-%s.socket", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/qms-%s.socket", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/%s.cid", guestid.c_str()));
+    paths.push_back(m2_string_format("/tmp/%s.instance", guestid.c_str()));
 
     std::for_each(paths.begin(), paths.end(), [](const std::string &ref)
                   {
@@ -529,12 +575,11 @@ void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, con
     std::size_t str_hash = std::hash<std::string>{}(reversed);
     std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
     std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
-    
 
     PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud-net;h=%s;i=%s;s=%s", hostname.c_str(), instance.c_str(), cloud_settings_src.c_str()));
     PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud-net;h=%s;i=%s;s=%s", hostname.c_str(), instance.c_str(), cloud_settings_src.c_str()));
 
-    std::cout << "Using NoCloud-Net: hostname: " << hostname << ", instance-id: "  << instance << ", cloud-util: " << cloud_settings_src << std::endl;
+    std::cout << "Using NoCloud-Net: hostname: " << hostname << ", instance-id: " << instance << ", cloud-util: " << cloud_settings_src << std::endl;
 }
 
 /**
@@ -557,7 +602,7 @@ void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid)
     PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud;h=%s;i=%s", hostname.c_str(), instance.c_str()));
     PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud;h=%s;i=%s", hostname.c_str(), instance.c_str()));
 
-    std::cout << "Using NoCloud: hostname: " << hostname << ", instance-id: "  << instance << std::endl;
+    std::cout << "Using NoCloud: hostname: " << hostname << ", instance-id: " << instance << std::endl;
 }
 
 /**
@@ -589,7 +634,8 @@ void QEMU_cloud_init_remove(QemuContext &ctx)
 pid_t QEMU_get_pid(const std::string &reservationid)
 {
     std::string str_pid = m2_string_format("/tmp/%s.pid", reservationid.c_str());
-    if (!fileExists(str_pid)) {
+    if (!fileExists(str_pid))
+    {
         return -1;
     }
     pid_t pid;
@@ -603,13 +649,15 @@ pid_t QEMU_get_pid(const std::string &reservationid)
 /**
  * @brief QEMU_getcid.
  * Returns a CID belonging to a reservation.
- * 
- * @param reservationid 
- * @return unsigned int 
+ *
+ * @param reservationid
+ * @return unsigned int
  */
-const unsigned int QEMU_getcid(const std::string &reservationid) {
+const unsigned int QEMU_getcid(const std::string &reservationid)
+{
     std::string str_cid = m2_string_format("/tmp/%s.cid", reservationid.c_str());
-    if (!fileExists(str_cid)) {
+    if (!fileExists(str_cid))
+    {
         return -1;
     }
     std::ifstream cidfile;
@@ -618,21 +666,67 @@ const unsigned int QEMU_getcid(const std::string &reservationid) {
     cidfile >> cid;
     cidfile.close();
     return cid;
-
 }
 
-std::vector<std::string> QEMU_get_reservations()
+/**
+ * @brief QEMU_getcid.
+ * Returns a CID belonging to a reservation.
+ *
+ * @param reservationid
+ * @return unsigned int
+ */
+const std::string QEMU_instanceid(const std::string &reservationid)
 {
-    std::vector<std::string> vec;
+    std::string str_instance = m2_string_format("/tmp/%s.instance", reservationid.c_str());
+    std::ifstream instancefile;
+
+    std::string instanceid;
+    instancefile.open(str_instance.c_str());
+    instancefile >> instanceid;
+    instancefile.close();
+    return instanceid;
+}
+
+std::vector<std::tuple<std::string, std::string>> QEMU_get_reservations()
+{
+    std::vector<std::tuple<std::string, std::string>> _vec;
     std::string path = "/tmp";
     for (const auto &entry : std::filesystem::directory_iterator(path))
     {
         std::string path = entry.path();
-        if (path.find(".pid") != std::string::npos)
+        if (path.find(".instance") != std::string::npos)
         {
-            vec.push_back(path.substr(5, path.find(".pid") - 5));
+            std::string reservation = path.substr(5, path.find(".instance") - 5);
+            std::string instance = QEMU_instanceid(reservation);
+
+            _vec.push_back(std::make_tuple(reservation, instance));
         }
     }
 
-    return vec;
+    return _vec;
+}
+
+/**
+ * @brief QEMU_isrunning
+ * Is used to determine if the instanceid is currently active.
+ * 
+ * @param instanceid 
+ * @return true 
+ * @return false 
+ */
+bool QEMU_isrunning(const std::string &instanceid)
+{
+    std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
+    auto it = std::find_if(reservations.begin(), reservations.end(), [&instanceid](std::tuple<std::string, std::string> &res) {
+        if (std::get<1>(res) == instanceid ) {
+           return true;
+        } 
+        return false;
+    });
+
+    if (it != reservations.end())
+    {
+        return true;
+    }
+    return false;
 }

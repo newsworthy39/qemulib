@@ -28,13 +28,14 @@ struct Model
     std::string flags;
     std::string arch;
 };
-std::ostream& operator<<(std::ostream &os, const struct Model &model);
+std::ostream &operator<<(std::ostream &os, const struct Model &model);
 struct QemuContext
 {
-    struct Model model = { .name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host" ,.arch = "amd64"};
+    struct Model model = {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"};
     std::vector<std::string> devices;
     std::vector<std::string> drives;
     std::string rootdrive;
+    std::string reservationid;
 };
 
 enum QEMU_DISPLAY
@@ -55,8 +56,34 @@ void PushArguments(QemuContext &args, std::string key, std::string value);
 /*
  * QEMU_init (std::vector<std::string>, int memory, int numcpus, const std::string language)
  */
-void QEMU_instance(QemuContext &ctx, const std::string language = "en");
+void QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language = "en");
 
+/**
+ * @brief QEMU_instanceid
+ *
+ * @param ctx
+ * @return std::string
+ */
+const std::string QEMU_instanceid(const std::string &reservation); 
+const std::string QEMU_instanceid(QemuContext &ctx);
+
+/**
+ * @brief QEMU_isrunning
+ * Is used to determine if the instanceid is currently active.
+ * 
+ * @param instanceid 
+ * @return true 
+ * @return false 
+ */
+bool QEMU_isrunning(const std::string &instanceid);
+
+/**
+ * @brief QEMU_getuser
+ * returns the user the guest runs as.
+ * @param ctx 
+ * @return std::string 
+ */
+std::string QEMU_getuser(QemuContext &ctx);
 /*
  * QEMU_drive (QemuContext )
  * Installs a drive as the non-bootable drive (and data-drive).
@@ -166,7 +193,7 @@ void QEMU_cloud_init_default(QemuContext &ctx, const std::string instanceid);
 /**
  * @brief QEMU_oemstrings
  * adds and sets oem-strings inside the bios for a VM.
- * 
+ *
  * @param ctx QemuContext
  * @param oemstrings  std::vector<std::string> formatted as the value={}-part.
  */
@@ -193,35 +220,34 @@ pid_t QEMU_get_pid(const std::string &reservationid);
 /**
  * @brief QEMU_get_cid
  * Returns a CID of a guest, belonging to the reservation.
- * 
- * @param reservationid 
- * @return const unsigned int 
+ *
+ * @param reservationid
+ * @return const unsigned int
  */
 const unsigned int QEMU_getcid(const std::string &reservationid);
 
 /**
  * @brief QEMU_get_reservations()
- * @returns std::vector<std::string>
+ * @returns std::vector<std::tuple<std::string, std::string>>
  */
-std::vector<std::string> QEMU_get_reservations();
+std::vector<std::tuple<std::string, std::string>> QEMU_get_reservations();
 
 /**
  * @brief QEMU_vsock
  * This creates a vmware-like vmci/vsock-virtio af_vsock interface.
- * 
- * @param ctx 
- * @param identifer 
+ *
+ * @param ctx
+ * @param identifer
  */
 void QEMU_vsock(QemuContext &ctx, const unsigned int cid);
 
 /**
- * @brief QEMU_User 
+ * @brief QEMU_User
  * sets the user, the instance is supposed to run under.
- * 
+ *
  * @param ctx A valid QemuContext.
  * @param user a username matching /etc/passwd
  */
-void QEMU_user(QemuContext &ctx, const std::string user) ;
-
+void QEMU_user(QemuContext &ctx, const std::string user);
 
 #endif

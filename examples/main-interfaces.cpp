@@ -54,12 +54,12 @@ int main(int argc, char *argv[])
         }
     }
 
-    std::vector<std::string> reservations = QEMU_get_reservations();
-    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation, &device](std::string &res) {
-        if (res == reservation || all == true) {
-            std::cout << "reservation: " << res << std::endl;
+    std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
+    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation, &device](std::tuple<std::string, std::string> &res) {
+        if (std::get<0>(res) == reservation || all == true) {
+            std::cout << "reservation: " << std::get<0>(res) << ", instance: " << std::get<1>(res) << std::endl;
             std::string error;
-            json11::Json json = json11::Json::parse(QEMU_qga_qinterfaces(res), error);
+            json11::Json json = json11::Json::parse(QEMU_qga_qinterfaces(std::get<0>(res)), error);
             json11::Json::array node = json["return"].array_items();
 
             std::for_each(node.begin(), node.end(), [&device](const json11::Json &nd) { 

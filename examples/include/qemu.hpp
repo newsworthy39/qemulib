@@ -2,22 +2,24 @@
 #define __QEMU_BRIDGE_HPP__
 
 #include <string>
-#include <xxd.hpp>
 
-std::ostream& operator<<(std::ostream &os, const struct Network &model);
+std::ostream &operator<<(std::ostream &os, const struct Network &model);
 
-enum NetworkTopology {
+enum NetworkTopology
+{
     Bridge,
     Macvtap
 };
 
-enum NetworkMacvtapMode {
+enum NetworkMacvtapMode
+{
     Private,
     VEPA,
     Bridged
 };
 
-struct Network {
+struct Network
+{
     NetworkTopology topology;
     NetworkMacvtapMode macvtapmode;
     std::string interface;
@@ -28,7 +30,8 @@ struct Network {
     std::string router;
 };
 
-struct Image {
+struct Image
+{
     std::string name;
     std::string datastore;
     std::string backingimage;
@@ -39,8 +42,8 @@ struct Image {
     std::string cloudinit;
 };
 
-
-std::ostream &operator<<(std::ostream &os, const struct Network &net)
+std::ostream &
+operator<<(std::ostream &os, const struct Network &net)
 {
     switch (net.topology)
     {

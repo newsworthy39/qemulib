@@ -53,19 +53,19 @@ int main(int argc, char *argv[])
         }
     }
 
-    std::vector<std::string> reservations = QEMU_get_reservations();
-    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation](std::string &res)
+    std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
+    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation](std::tuple<std::string, std::string> &res)
                   {
-        if (res == reservation || all == true)
+        if (std::get<0>(res) == reservation || all == true)
             if (force)
             {
-                std::cout << "Sending kill to " << res << std::endl;
-                QEMU_kill(res);
+                std::cout << "Sending kill to " << std::get<1>( res ) << std::endl;
+                QEMU_kill(std::get<0>(res));
             }
             else
             {
-                std::cout << "Sending powerdown to " << res << std::endl;
-                QEMU_powerdown(res);
+                std::cout << "Sending powerdown to " << std::get<1>(res) << std::endl;
+                QEMU_powerdown(std::get<0>(res));
             } });
 
     return EXIT_SUCCESS;

@@ -64,13 +64,13 @@ int main(int argc, char *argv[])
         while (0 < (msg_len = recv(peer_fd, &buf, 4096, 0)))
         {
             // First we find the reservation,.
-            std::vector<std::string> reservations = QEMU_get_reservations();
-            std::vector<std::string>::iterator found = std::find_if(reservations.begin(), reservations.end(), [&peer_addr](const std::string &reservation)
-                                                                    { return QEMU_getcid(reservation) == peer_addr.svm_cid; });
+            std::vector<std::tuple<std::string,std::string>> reservations = QEMU_get_reservations();
+            std::vector<std::tuple<std::string,std::string>>::iterator found = std::find_if(reservations.begin(), reservations.end(), [&peer_addr](const std::tuple<std::string, std::string> &reservation)
+                                                                    { return QEMU_getcid(std::get<0>(reservation)) == peer_addr.svm_cid; });
 
-            std::string output = m3_string_format("{ \"reservation\": \"%s\" }", (*found).c_str());
+            std::string output = m3_string_format("{ \"reservation\": \"%s\" }", std::get<0>(*found).c_str());
 
-            std::cout << "Received " << msg_len << ", " << buf << " from reservation " << *found << std::endl;
+            std::cout << "Received " << msg_len << ", " << buf << " from reservation " << std::get<0>(*found) << std::endl;
             ;
 
             size_t bytes = send(peer_fd, output.c_str(), output.size(), 0);

@@ -42,7 +42,7 @@ std::string m3_string_format(const std::string &format, Args... args)
 template <class type>
 type globals(YAML::Node &configuration, std::string section, std::string key, type defaults)
 {
-    if (configuration[section] )
+    if (configuration[section])
     {
         YAML::Node global = configuration[section];
         if (global[key])
@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 {
 
     QemuContext ctx;
-    int port = 4444, snapshot = 0, mandatory = 0, registerdesktop = 0;
+    int port = 4444, snapshot = 0, mandatory = 0;
     std::string instanceid;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
@@ -269,7 +269,7 @@ int main(int argc, char *argv[])
     std::string default_registry = globals<std::string>(config, "globals", "default_registry", "none");
     size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
-                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} -register "
+                                         "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} "
                                          "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
@@ -321,7 +321,7 @@ int main(int argc, char *argv[])
 
     struct Network defaultNetworkModel
     {
-        .cidr = "10.0.96.2/24", .nat = true
+        .cidr = "10.0.96.0/24", .nat = true
     };
     std::vector<struct Network> nets = loadModel<struct Network>(config, "networks", defaultNetworkModel);
     if (nets.size() > 0)
@@ -344,6 +344,12 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find(delimiter) != std::string::npos)
         {
             instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
+
+            // Is the lock taken?
+            if (QEMU_isrunning(instanceid)) {
+                std::cerr << "Instance " << instanceid << " is running" << std::endl;
+                exit(EXIT_FAILURE);
+            }
 
             auto it = std::find_if(images.begin(), images.end(), [&instanceid](const struct Image &ct)
                                    { return instanceid.starts_with(ct.name); });
@@ -398,11 +404,6 @@ int main(int argc, char *argv[])
             {
                 std::cerr << "Image not defined." << std::endl;
             }
-        }
-
-        if (std::string(argv[i]).find("-register") != std::string::npos)
-        {
-            registerdesktop = 1;
         }
 
         if (std::string(argv[i]).find("-headless") != std::string::npos)
@@ -607,21 +608,6 @@ int main(int argc, char *argv[])
         }
     }
 
-    if (registerdesktop == 1)
-    {
-        std::vector<std::string> arguments(argv, argv + argc);
-
-        const char *const delim = " ";
-        std::ostringstream imploded;
-        std::copy(arguments.begin(), arguments.end(),
-                  std::ostream_iterator<std::string>(imploded, delim));
-        std::string fmt(reinterpret_cast<char *>(resources_template_desktop));
-        std::ofstream desktopfile;
-        desktopfile.open(m3_string_format("/home/gandalf/.local/share/applications/qemu-%s.desktop", instanceid.c_str()));
-        desktopfile << m3_string_format(fmt, instanceid.c_str(), instanceid.c_str(), imploded.str().c_str()) << std::endl;
-        desktopfile.close();
-    }
-
     // Autoapply the Model.
     auto it = std::find_if(models.begin(), models.end(), [&model](const struct Model &line)
                            { return line.name.compare(model) == 0; });
@@ -640,7 +626,7 @@ int main(int argc, char *argv[])
     pid_t daemon = fork();
     if (daemon == 0)
     {
-        QEMU_instance(ctx, lang);
+        QEMU_instance(ctx, instanceid, lang);
         QEMU_user(ctx, "gandalf");
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
