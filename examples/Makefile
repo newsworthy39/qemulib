@@ -7,13 +7,16 @@ CC=g++
 
 .PHONY: clean all
 
-all: checkdirs qemu-powerdown qemu-interfaces qemu qemu-metadataservice
+all: checkdirs qemu-powerdown qemu-interfaces qemu qemu-metadataservice qemu-instances
 
 checkdirs: $(BUILDDIR)
 $(BUILDDIR):
 	@mkdir -p $@
 
 qemu-powerdown: main-powerdown.o 
+	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
+
+qemu-instances: main-instances.o 
 	$(CXX) $(FLAGS) -o $(BUILDDIR)/$@ $^ $(LDFLAGS)
 
 qemu-interfaces: main-interfaces.o 

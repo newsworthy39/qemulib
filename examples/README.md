@@ -41,6 +41,9 @@ example of zero-network host-to-guest communication.
 An example of how to use modern c++ idioms, from STL to iterate a vector of reservations and issue QMP-commands, controlling a vm.
 In this case, to powerdown (acpi-power).
 
+## Main-instances.cpp
+An example of how to use modern c++ idioms, from STL to iterate a vector of reservations and describes, which guests are currently running.
+
 # Build
 Requires Make, g++ and the ability, to build with c++20 flag. 
 
