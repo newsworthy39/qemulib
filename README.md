@@ -16,7 +16,7 @@ Run 'Make' in the root-dir.
 _This builds a static-library, that used is used to link into the examples,
 that serve as primitive test-bed._
 
-# Libraries used
+# Libraries used to make examples.
 * libraries/json11. See README.md and License.txt
 * Netlink route 3
 * Yaml CPP
