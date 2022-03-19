@@ -109,5 +109,3 @@ models:
     cpus: 8
     flags: host    
     arch: amd64
-
-    

@@ -10,7 +10,6 @@ CC=g++
 all: checkdirs qemu-powerdown qemu-interfaces qemu qemu-metadataservice
 
 checkdirs: $(BUILDDIR)
-
 $(BUILDDIR):
 	@mkdir -p $@
 
