@@ -17,15 +17,11 @@ std::string m3_string_format(const std::string &format, Args... args)
 
 int main(int argc, char *argv[])
 {
-    bool verbose = false;
-    std::string topic = "";
-    std::string reservation = "";
+    bool all = true, verbose = false;
+    std::string filter = "";
     std::string device = "";
-    int force = 0;
-    bool all = true;
-
-    std::string usage = m3_string_format("usage(): %s (-help) (-device) (reservation://%s)",
-                                         argv[0], reservation.c_str());
+    std::string usage = m3_string_format("usage(): %s (-help) (-device) (-filter) ",
+                                         argv[0]);
 
     for (int i = 1; i < argc; ++i)
     { // Remember argv[0] is the path to the program, we want from argv[1] onwards
@@ -41,22 +37,24 @@ int main(int argc, char *argv[])
             device = argv[i + 1];
         }
 
+        if (std::string(argv[i]).find("-filter") != std::string::npos && (i + 1 < argc))
+        {
+            filter = argv[i + 1];
+            all = false;
+        }
+
         if (std::string(argv[i]).find("-v") != std::string::npos)
         {
             verbose = true;
         }
 
-        if (std::string(argv[i]).find("://") != std::string::npos)
-        {
-            const std::string delimiter = "://";
-            reservation = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
-            all = false;
-        }
+        
     }
 
     std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
-    std::for_each(reservations.begin(), reservations.end(), [force, all, &reservation, &device](std::tuple<std::string, std::string> &res) {
-        if (std::get<0>(res) == reservation || all == true) {
+    std::for_each(reservations.begin(), reservations.end(), [all, &device, &filter](std::tuple<std::string, std::string> &res)
+                  {
+        if (std::get<1>(res).starts_with(filter) || all == true) {
             std::cout << "reservation: " << std::get<0>(res) << ", instance: " << std::get<1>(res) << std::endl;
             std::string error;
             json11::Json json = json11::Json::parse(QEMU_qga_qinterfaces(std::get<0>(res)), error);
@@ -75,7 +73,6 @@ int main(int argc, char *argv[])
                     });
                 } 
             });
-        } 
-    });
+        } });
     return EXIT_SUCCESS;
 }
