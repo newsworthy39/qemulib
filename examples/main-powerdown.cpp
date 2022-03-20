@@ -17,9 +17,9 @@ std::string m3_string_format(const std::string &format, Args... args)
 
 int main(int argc, char *argv[])
 {
-    bool bVerbose = false, bForce = false, bAll = true;
+    bool bVerbose = false, bForce = false, bAll = true, bDryRun = false;
     std::string filter;
-    std::string usage = m3_string_format("usage(): %s (-help) (-force) (-filter)",
+    std::string usage = m3_string_format("usage(): %s (-help) (-dryrun) (-force) (-filter)",
                                          argv[0]);
 
     for (int i = 1; i < argc; ++i)
@@ -36,6 +36,11 @@ int main(int argc, char *argv[])
             bVerbose = true;
         }
 
+        if (std::string(argv[i]).find("-dryrun") != std::string::npos)
+        {
+            bDryRun = true;
+        }
+
         if (std::string(argv[i]).find("-force") != std::string::npos)
         {
             bForce = true;
@@ -49,18 +54,20 @@ int main(int argc, char *argv[])
     }
 
     std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
-    std::for_each(reservations.begin(), reservations.end(), [bForce, bAll, &filter](std::tuple<std::string, std::string> &res)
+    std::for_each(reservations.begin(), reservations.end(), [bForce, bAll, bDryRun, &filter](std::tuple<std::string, std::string> &res)
                   {
         if (std::get<1>(res).starts_with(filter) || bAll == true)
             if (bForce)
             {
-                std::cout << "Sending kill to " << std::get<0>( res ) << std::endl;
-                QEMU_kill(std::get<0>(res));
+                std::cout << "Sending kill to reservation://" << std::get<0>( res ) << std::endl;
+                if (!bDryRun)
+                    QEMU_kill(std::get<0>(res));
             }
             else
             {
-                std::cout << "Sending powerdown to " << std::get<0>(res) << std::endl;
-                QEMU_powerdown(std::get<0>(res));
+                std::cout << "Sending powerdown to reservation://" << std::get<0>(res) << std::endl;
+                if (!bDryRun)
+                    QEMU_powerdown(std::get<0>(res));
             } });
 
     return EXIT_SUCCESS;
