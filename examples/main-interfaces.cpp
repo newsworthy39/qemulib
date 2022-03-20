@@ -46,9 +46,7 @@ int main(int argc, char *argv[])
         if (std::string(argv[i]).find("-v") != std::string::npos)
         {
             verbose = true;
-        }
-
-        
+        }        
     }
 
     std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
