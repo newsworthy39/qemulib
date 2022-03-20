@@ -268,7 +268,7 @@ int main(int argc, char *argv[])
     std::string default_domainname = globals<std::string>(config, "globals", "default_domainname", "local");
     std::string default_registry = globals<std::string>(config, "globals", "default_registry", "none");
     size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
-    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-snapshot) -incoming {default=4444} "
+    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-ephimeral) -incoming {default=4444} "
                                          "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} "
                                          "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
@@ -435,7 +435,7 @@ int main(int argc, char *argv[])
             QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
         }
 
-        if (std::string(argv[i]).find("-snapshot") != std::string::npos)
+        if (std::string(argv[i]).find("-ephimeral") != std::string::npos)
         {
             QEMU_ephimeral(ctx);
         }
