@@ -65,7 +65,7 @@ int main(int argc, char *argv[])
             }
             else
             {
-                std::cout << "Sending powerdown to reservation://" << std::get<0>(res) << std::endl;
+                std::cout << "Sending ACPI-powerdown to reservation://" << std::get<0>(res) << std::endl;
                 if (!bDryRun)
                     QEMU_powerdown(std::get<0>(res));
             } });
