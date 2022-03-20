@@ -36,6 +36,7 @@ struct QemuContext
     std::vector<std::string> drives;
     std::string rootdrive;
     std::string reservationid;
+    bool mEphimeral = false;
 };
 
 enum QEMU_DISPLAY

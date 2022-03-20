@@ -288,13 +288,14 @@ int QEMU_drive(QemuContext &args, const std::string &drivepath)
  * @param drivepath the path to the drive.
  * @return int -1 on error. 0 on success.
  */
-int QEMU_bootdrive(QemuContext &args, const std::string &drivepath, size_t bpstotal = 16777216)
+int QEMU_bootdrive(QemuContext &ctx, const std::string &drivepath, size_t bpstotal = 16777216)
 {
     if (fileExists(drivepath))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=0,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=%d,id=%s", drivepath.c_str(), bpstotal, blockdevice.c_str()));
+        PushDriveArgument(ctx, m2_string_format("if=virtio,index=0,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=%d,id=%s", drivepath.c_str(), bpstotal, blockdevice.c_str()));
         std::cout << "Using boot-drive[0]: " << drivepath << "." << std::endl;
+        ctx.rootdrive = drivepath;
         return 0;
     }
     else
@@ -473,7 +474,9 @@ void QEMU_display(QemuContext &ctx, const QEMU_DISPLAY &display)
  */
 void QEMU_ephimeral(QemuContext &ctx)
 {
-    PushDeviceArgument(ctx, "-snapshot"); // snapshot
+    // PushDeviceArgument(ctx, "-snapshot"); // Deprecated in favour of the disk-backed-method
+    ctx.mEphimeral = true;
+    std::cout << "Using snapshot, the bootdrive will removed on exit." << std::endl;
 }
 
 /**
@@ -544,10 +547,8 @@ void QEMU_notified_started(QemuContext &ctx)
  */
 void QEMU_notified_exited(QemuContext &ctx)
 {
-
     std::string guestid = QEMU_reservation_id(ctx);
     std::vector<std::string> paths;
-
     paths.push_back(m2_string_format("/tmp/%s.monitor", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/%s.pid", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/%s.socket", guestid.c_str()));
@@ -555,6 +556,11 @@ void QEMU_notified_exited(QemuContext &ctx)
     paths.push_back(m2_string_format("/tmp/qms-%s.socket", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/%s.cid", guestid.c_str()));
     paths.push_back(m2_string_format("/tmp/%s.instance", guestid.c_str()));
+
+    // Should we remove the drives?
+    if (ctx.mEphimeral) {
+        paths.push_back(ctx.rootdrive);
+    }
 
     std::for_each(paths.begin(), paths.end(), [](const std::string &ref)
                   {
@@ -579,7 +585,7 @@ void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, con
     PushArguments(ctx, "-smbios", m2_string_format("type=1,serial=ds=nocloud-net;h=%s;i=%s;s=%s", hostname.c_str(), instance.c_str(), cloud_settings_src.c_str()));
     PushArguments(ctx, "-smbios", m2_string_format("type=11,value=cloud-init:ds=nocloud-net;h=%s;i=%s;s=%s", hostname.c_str(), instance.c_str(), cloud_settings_src.c_str()));
 
-    std::cout << "Using NoCloud-Net: hostname: " << hostname << ", instance-id: " << instance << ", cloud-util: " << cloud_settings_src << std::endl;
+    std::cout << "Using NoCloud-Net: hostname: " << hostname << ", instance-id: " << instance << ", cloud-init: " << cloud_settings_src << std::endl;
 }
 
 /**
