@@ -270,7 +270,7 @@ int QEMU_drive(QemuContext &args, const std::string &drivepath)
     if (fileExists(drivepath))
     {
         std::string blockdevice = generateRandomPrefixedString("block", 4);
-        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=16777216,id=%s", ++bootindex, drivepath.c_str(), blockdevice.c_str()));
+        PushDriveArgument(args, m2_string_format("if=virtio,index=%d,file=%s,media=disk,format=qcow2,cache=writeback,throttling.bps-total=16777216,id=%s", bootindex, drivepath.c_str(), blockdevice.c_str()));
         std::cout << "Using drive[" << bootindex << "]: " << drivepath << std::endl;
         return 0;
     }
@@ -509,7 +509,7 @@ void QEMU_launch(QemuContext &ctx, bool block, const std::string hypervisor)
                   { left_argv.push_back(const_cast<char *>(device.c_str())); });
 
     // Then we take, the drives in a orderly fasion.
-    std::for_each(ctx.drives.rbegin(), ctx.drives.rend(), [&left_argv](const std::string &drive)
+    std::for_each(ctx.drives.begin(), ctx.drives.end(), [&left_argv](const std::string &drive)
                   { 
                       
                       left_argv.push_back(const_cast<char *>("-drive")); 
