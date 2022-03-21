@@ -332,8 +332,9 @@ int main(int argc, char *argv[])
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
     {
+        std::string  argument(argv[i]);
 
-        if (std::string(argv[i]).find("-help") != std::string::npos)
+        if (argument.find("-help") != std::string::npos)
         {
             std::cout << usage << std::endl;
             exit(EXIT_FAILURE);
@@ -341,7 +342,7 @@ int main(int argc, char *argv[])
 
         // We'll need to go through everything first
         const std::string delimiter = "://";
-        if (std::string(argv[i]).find(delimiter) != std::string::npos)
+        if (argument.find(delimiter) != std::string::npos)
         {
             instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
 
@@ -406,12 +407,12 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (std::string(argv[i]).find("-headless") != std::string::npos)
+        if (argument.find("-headless") != std::string::npos)
         {
             display = QEMU_DISPLAY::VNC;
         }
 
-        if (std::string(argv[i]).find("-model") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-model") != std::string::npos && (i + 1 < argc))
         {
             model = argv[i + 1];
 
@@ -425,21 +426,21 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (std::string(argv[i]).find("-machine") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-machine") != std::string::npos && (i + 1 < argc))
         {
             machine = argv[i + 1];
         }
 
-        if (std::string(argv[i]).find("-incoming") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-incoming") != std::string::npos && (i + 1 < argc))
         {
             QEMU_Accept_Incoming(ctx, std::atoi(argv[i + 1]));
         }
 
-        if (std::string(argv[i]).find("-ephimeral") != std::string::npos)
+        if (argument.find("-ephimeral") != std::string::npos)
         {
             QEMU_ephimeral(ctx);
         }
-        if (std::string(argv[i]).find("-profile") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-profile") != std::string::npos && (i + 1 < argc))
         {
             default_profile = argv[i + 1];
         }
@@ -454,8 +455,10 @@ int main(int argc, char *argv[])
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
     {
+        std::string  argument(argv[i]);
+
         // TODO: This is probably, not the best way now.
-        if (std::string(argv[i]).find("-network") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-network") != std::string::npos && (i + 1 < argc))
         {
             std::string networkname = argv[i + 1];
 
@@ -526,7 +529,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (std::string(argv[i]).find("-iso") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-iso") != std::string::npos && (i + 1 < argc))
         {
 
             // This allows us, to use different datastores, following this idea
@@ -557,7 +560,7 @@ int main(int argc, char *argv[])
 
         // This allows us, to use different datastores, following this idea
         // -drive main:test-something-2.
-        if (std::string(argv[i]).find("-drive") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-drive") != std::string::npos && (i + 1 < argc))
         {
             std::string datastore = default_datastore;
             std::string drivename = std::string(argv[i + 1]);
