@@ -730,9 +730,5 @@ bool QEMU_isrunning(const std::string &instanceid)
         return false;
     });
 
-    if (it != reservations.end())
-    {
-        return true;
-    }
-    return false;
+    return it != reservations.end();
 }
