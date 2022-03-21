@@ -567,7 +567,7 @@ int main(int argc, char *argv[])
             std::string drivesize = default_disk_size;
             const std::string delimiter = ":";
 
-            if (drivesize.find(delimiter) != std::string::npos)
+            if (argument.find(delimiter) != std::string::npos)
             {
                 datastore = drivesize.substr(0, drivesize.find(delimiter));  // remove the drivename-part.
                 drivesize = drivesize.substr(drivesize.find(delimiter) + 1); // remove the datastore-part.
