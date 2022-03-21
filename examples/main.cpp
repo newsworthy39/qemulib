@@ -565,12 +565,13 @@ int main(int argc, char *argv[])
         {
             std::string datastore = default_datastore;
             std::string drivesize = default_disk_size;
+            std::string option = std::string(argv[i + 1]);
             const std::string delimiter = ":";
 
-            if (argument.find(delimiter) != std::string::npos)
+            if (option.find(delimiter) != std::string::npos)
             {
-                datastore = drivesize.substr(0, drivesize.find(delimiter));  // remove the drivename-part.
-                drivesize = drivesize.substr(drivesize.find(delimiter) + 1); // remove the datastore-part.
+                datastore = option.substr(0, option.find(delimiter));  // remove the drivename-part.
+                drivesize = option.substr(option.find(delimiter) + 1); // remove the datastore-part.
             }
 
             auto dt = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
