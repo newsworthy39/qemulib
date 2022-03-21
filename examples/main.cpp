@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
     size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-ephimeral) -incoming {default=4444} "
                                          "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} "
-                                         "(-iso cdrom) -drive hd+1 instance://instance-id { eg. instance://i-1234 }",
+                                         "(-iso cdrom) (-datavol datastore:size) instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
@@ -332,7 +332,7 @@ int main(int argc, char *argv[])
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
     {
-        std::string  argument(argv[i]);
+        std::string argument(argv[i]);
 
         if (argument.find("-help") != std::string::npos)
         {
@@ -347,7 +347,8 @@ int main(int argc, char *argv[])
             instanceid = std::string(argv[i]).substr(std::string(argv[i]).find(delimiter) + 3);
 
             // Is the lock taken?
-            if (QEMU_isrunning(instanceid)) {
+            if (QEMU_isrunning(instanceid))
+            {
                 std::cerr << "Instance " << instanceid << " is running" << std::endl;
                 exit(EXIT_FAILURE);
             }
@@ -455,7 +456,7 @@ int main(int argc, char *argv[])
     // Remember argv[0] is the path to the program, we want from argv[1] onwards
     for (int i = 1; i < argc; ++i)
     {
-        std::string  argument(argv[i]);
+        std::string argument(argv[i]);
 
         // TODO: This is probably, not the best way now.
         if (argument.find("-network") != std::string::npos && (i + 1 < argc))
@@ -560,48 +561,27 @@ int main(int argc, char *argv[])
 
         // This allows us, to use different datastores, following this idea
         // -drive main:test-something-2.
-        if (argument.find("-drive") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-datavol") != std::string::npos && (i + 1 < argc))
         {
             std::string datastore = default_datastore;
-            std::string drivename = std::string(argv[i + 1]);
+            std::string drivesize = default_disk_size;
             const std::string delimiter = ":";
 
-            if (drivename.find(delimiter) != std::string::npos)
+            if (drivesize.find(delimiter) != std::string::npos)
             {
-                datastore = drivename.substr(0, drivename.find(delimiter));  // remove the drivename-part.
-                drivename = drivename.substr(drivename.find(delimiter) + 1); // remove the datastore-part.
+                datastore = drivesize.substr(0, drivesize.find(delimiter));  // remove the drivename-part.
+                drivesize = drivesize.substr(drivesize.find(delimiter) + 1); // remove the datastore-part.
             }
 
             auto dt = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
                                    { return datastore.starts_with(std::get<0>(ct)); });
             datastore = std::get<1>(*dt);
 
-            auto it = std::find_if(images.begin(), images.end(), [&drivename](const struct Image &ct)
-                                   { return drivename.starts_with(ct.name); });
+            std::string absdrive = m3_string_format("%s/%s-datavol.img", datastore.c_str(), instanceid.c_str());
 
-            std::string absdrive = m3_string_format("%s/%s.img", datastore.c_str(), drivename.c_str());
-
-            if (it != images.end())
+            if (!fileExists(absdrive))
             {
-                struct Image conf = *it;
-                std::string backingdrive = conf.backingimage;
-                std::string size = default_disk_size;
-                if (!it->sz.empty())
-                {
-                    size = it->sz;
-                }
-
-                if (!fileExists(absdrive))
-                {
-                    QEMU_allocate_backed_drive(absdrive, size, backingdrive);
-                }
-            }
-            else // if backing-file was *NOT* found, simply blank a default_disk_size drive.
-            {
-                if (!fileExists(absdrive))
-                {
-                    QEMU_allocate_drive(absdrive, default_disk_size);
-                }
+                QEMU_allocate_drive(absdrive, drivesize);
             }
 
             if (-1 == QEMU_drive(ctx, absdrive))
