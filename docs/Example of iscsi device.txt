@@ -1,0 +1,7 @@
+Below is given an example of a iscsi-backed drive. See more at 
+https://serverfault.com/questions/800933/iscsi-as-kvm-storage-backend-best-practice-concerning-targets-and-luns-per-vm
+
+-device virtio-scsi-pci,id=scsi0 \
+-device scsi-hd,bus=scsi0.0,channel=0,scsi-id=0,drive=disk0 \
+-drive id=disk0,file=iscsi://server.example.com/iqn.2000-01.com.example:server:target/0,if=none,cache=none,format=raw,media=disk,discard=unmap
+
