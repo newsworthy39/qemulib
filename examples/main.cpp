@@ -546,21 +546,22 @@ int main(int argc, char *argv[])
 
             auto it = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
                                    { return datastore.compare(std::get<0>(ct)) == 0; });
+            if (it == datastores.end())
+            {
+                std::cerr << m3_string_format("iso-store %s does not exist.", datastore.c_str()) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+            
             if (it != datastores.end())
             {
                 std::string drive = m3_string_format("%s/%s.iso", std::get<1>(*it).c_str(), drivename.c_str());
                 QEMU_iso(ctx, drive);
             }
-            else
-            {
-                std::cerr << "The iso-store " << datastore << ", was not found." << std::endl;
-                exit(-1);
-            }
         }
 
         if (argument.find("-vol") != std::string::npos && (i + 1 < argc))
         {
-            
+
             std::string datastore = default_datastore;
             std::string drivesize = default_disk_size;
             std::string option = std::string(argv[i + 1]);
@@ -574,6 +575,13 @@ int main(int argc, char *argv[])
 
             auto dt = std::find_if(datastores.begin(), datastores.end(), [&datastore](const std::tuple<std::string, std::string> &ct)
                                    { return datastore.starts_with(std::get<0>(ct)); });
+
+            if (dt == datastores.end())
+            {
+                std::cerr << m3_string_format("Datastore %s does not exist.", datastore.c_str()) << std::endl;
+                exit(EXIT_FAILURE);
+            }
+
             datastore = std::get<1>(*dt);
 
             std::string absdrive = m3_string_format("%s/%s-vol-%d.img", datastore.c_str(), instanceid.c_str(), drivecount++);
