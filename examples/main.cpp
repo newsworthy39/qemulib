@@ -253,7 +253,7 @@ int main(int argc, char *argv[])
 {
 
     QemuContext ctx;
-    int port = 4444, snapshot = 0, mandatory = 0;
+    int port = 4444, snapshot = 0, mandatory = 0, drivecount = 0;
     std::string instanceid;
     QEMU_DISPLAY display = QEMU_DISPLAY::GTK;
     YAML::Node config = YAML::LoadFile("/home/gandalf/workspace/qemu/registry.yml");
@@ -270,7 +270,7 @@ int main(int argc, char *argv[])
     size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
     std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-ephimeral) -incoming {default=4444} "
                                          "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} "
-                                         "(-iso cdrom) (-datavol datastore:size) instance://instance-id { eg. instance://i-1234 }",
+                                         "(-iso cdrom) (-vol datastore:size) instance://instance-id { eg. instance://i-1234 }",
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
@@ -532,7 +532,6 @@ int main(int argc, char *argv[])
 
         if (argument.find("-iso") != std::string::npos && (i + 1 < argc))
         {
-
             // This allows us, to use different datastores, following this idea
             // -drive main:test-something-2.
             std::string datastore = default_isostore;
@@ -559,10 +558,9 @@ int main(int argc, char *argv[])
             }
         }
 
-        // This allows us, to use different datastores, following this idea
-        // -drive main:test-something-2.
-        if (argument.find("-datavol") != std::string::npos && (i + 1 < argc))
+        if (argument.find("-vol") != std::string::npos && (i + 1 < argc))
         {
+            
             std::string datastore = default_datastore;
             std::string drivesize = default_disk_size;
             std::string option = std::string(argv[i + 1]);
@@ -578,7 +576,7 @@ int main(int argc, char *argv[])
                                    { return datastore.starts_with(std::get<0>(ct)); });
             datastore = std::get<1>(*dt);
 
-            std::string absdrive = m3_string_format("%s/%s-datavol.img", datastore.c_str(), instanceid.c_str());
+            std::string absdrive = m3_string_format("%s/%s-vol-%d.img", datastore.c_str(), instanceid.c_str(), drivecount++);
 
             if (!fileExists(absdrive))
             {
