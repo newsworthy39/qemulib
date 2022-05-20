@@ -368,6 +368,8 @@ void QEMU_allocate_backed_drive(std::string path, std::string sz, std::string ba
         left_argv.push_back(const_cast<char *>("create"));
         left_argv.push_back(const_cast<char *>("-f"));
         left_argv.push_back(const_cast<char *>("qcow2"));
+        left_argv.push_back(const_cast<char *>("-F"));
+        left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfile.c_str()));
         left_argv.push_back(const_cast<char *>(path.c_str()));
@@ -406,6 +408,8 @@ void QEMU_rebase_backed_drive(std::string id, std::string backingfilepath)
         left_argv.push_back(const_cast<char *>(QEMU_DEFAULT_IMG));
         left_argv.push_back(const_cast<char *>("rebase"));
         left_argv.push_back(const_cast<char *>("-f"));
+        left_argv.push_back(const_cast<char *>("qcow2"));
+        left_argv.push_back(const_cast<char *>("-F"));
         left_argv.push_back(const_cast<char *>("qcow2"));
         left_argv.push_back(const_cast<char *>("-b"));
         left_argv.push_back(const_cast<char *>(backingfilepath.c_str()));
@@ -558,7 +562,8 @@ void QEMU_notified_exited(QemuContext &ctx)
     paths.push_back(m2_string_format("/tmp/%s.instance", guestid.c_str()));
 
     // Should we remove the drives?
-    if (ctx.mEphimeral) {
+    if (ctx.mEphimeral)
+    {
         paths.push_back(ctx.rootdrive);
     }
 
@@ -715,20 +720,20 @@ std::vector<std::tuple<std::string, std::string>> QEMU_get_reservations()
 /**
  * @brief QEMU_isrunning
  * Is used to determine if the instanceid is currently active.
- * 
- * @param instanceid 
- * @return true 
- * @return false 
+ *
+ * @param instanceid
+ * @return true
+ * @return false
  */
 bool QEMU_isrunning(const std::string &instanceid)
 {
     std::vector<std::tuple<std::string, std::string>> reservations = QEMU_get_reservations();
-    auto it = std::find_if(reservations.begin(), reservations.end(), [&instanceid](std::tuple<std::string, std::string> &res) {
+    auto it = std::find_if(reservations.begin(), reservations.end(), [&instanceid](std::tuple<std::string, std::string> &res)
+                           {
         if (std::get<1>(res) == instanceid ) {
            return true;
         } 
-        return false;
-    });
+        return false; });
 
     return it != reservations.end();
 }

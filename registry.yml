@@ -58,6 +58,12 @@ images:
     size: 64g
     media: disc
     bps-total: 16777216
+  - name: testing
+    datastore: default
+    backingimage: default
+    media: disc    
+    bps-total: 33554432
+    size: 32g
 models:
   - name: t1-small
     memory: 1024

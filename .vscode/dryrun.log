@@ -1,0 +1,25 @@
+make --dry-run --always-make --keep-going --print-directory
+make: Entering directory '/home/gandalf/workspace/qemu'
+mkdir -p build
+g++ -std=c++2a -Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include    -c -o src/qemu-link.o src/qemu-link.cpp
+g++ -std=c++2a -Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include    -c -o src/qemu-hypervisor.o src/qemu-hypervisor.cpp
+g++ -std=c++2a -Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include    -c -o src/qemu-manage.o src/qemu-manage.cpp
+ar -r -o build/libqemu.a src/qemu-link.o src/qemu-hypervisor.o src/qemu-manage.o
+g++ -std=c++2a -Iinclude/ -Ilibraries/json11 -I/usr/include/libnl3 -I/usr/local/include    -c -o libraries/json11/json11.o libraries/json11/json11.cpp
+ar -r -o build/libjson.a libraries/json11/json11.o 
+make -C examples 
+make[1]: Entering directory '/home/gandalf/workspace/qemu/examples'
+mkdir -p ../build
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11    -c -o main-powerdown.o main-powerdown.cpp
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11 -o3 -o ../build/qemu-powerdown main-powerdown.o -L../build -lqemu -ljson -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11    -c -o main-interfaces.o main-interfaces.cpp
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11 -o3 -o ../build/qemu-interfaces main-interfaces.o -L../build -lqemu -ljson -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11    -c -o main.o main.cpp
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11 -o3 -o ../build/qemu main.o -L../build -lqemu -ljson -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11    -c -o main-metadataservice.o main-metadataservice.cpp
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11 -o3 -o ../build/qemu-metadataservice main-metadataservice.o -L../build -lqemu -ljson -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11    -c -o main-instances.o main-instances.cpp
+g++ -std=c++2a -I../include/ -Iinclude/ -I/usr/include/libnl3 -I/usr/local/include -I../libraries/json11 -o3 -o ../build/qemu-instances main-instances.o -L../build -lqemu -ljson -lnl-route-3 -lnl-3 -lyaml-cpp -pthread
+make[1]: Leaving directory '/home/gandalf/workspace/qemu/examples'
+make: Leaving directory '/home/gandalf/workspace/qemu'
+ 
