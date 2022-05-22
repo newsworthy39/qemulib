@@ -20,8 +20,37 @@
 #include <sys/un.h>
 #include <qemu-hypervisor.hpp>
 
+std::ostream &operator<<(std::ostream &os, const struct Network &model);
+
+enum NetworkTopology
+{
+    Bridge,
+    Macvtap,
+    Tuntap
+};
+
+enum NetworkMacvtapMode
+{
+    Private,
+    VEPA,
+    Bridged,
+    Passthrough
+};
+
+struct Network
+{
+    NetworkTopology topology;
+    NetworkMacvtapMode macvtapmode;
+    std::string interface;
+    std::string name;
+    std::string net_namespace;
+    std::string cidr;
+    bool nat;
+    std::string router;
+};
+
 std::string QEMU_allocate_tun(QemuContext &ctx);
-std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface);
+std::string QEMU_allocate_macvtap(QemuContext &ctx, const struct Network &);
 std::string generateRandomMACAddress();
 std::string QEMU_Generate_Link_Name(std::string prefix, int length);
 
@@ -41,5 +70,8 @@ void QEMU_set_interface_address(const std::string device, const std::string addr
 std::string QEMU_get_interface_cidr(const std::string device);
 void QEMU_iptables_set_masquerade(std::string cidr);
 void QEMU_set_router(bool on);
+
+int macvtapModes(const enum NetworkMacvtapMode &net);
+std::string strMacvtapModes(const enum NetworkMacvtapMode &net);
 
 #endif

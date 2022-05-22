@@ -75,7 +75,53 @@ int QEMU_allocate_bridge(std::string bridge)
     return 0;
 }
 
-std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
+int macvtapModes(const enum NetworkMacvtapMode &net)
+{
+    if (net == NetworkMacvtapMode::Bridged)
+    {
+        return rtnl_link_macvtap_str2mode("bridge");
+    }
+
+    if (net == NetworkMacvtapMode::VEPA)
+    {
+        return rtnl_link_macvtap_str2mode("vepa");
+    }
+
+    if (net == NetworkMacvtapMode::Private)
+    {
+        return rtnl_link_macvtap_str2mode("private");
+    }
+
+    if (net == NetworkMacvtapMode::Passthrough)
+    {
+        return rtnl_link_macvtap_str2mode("passthrough");
+    }
+    return rtnl_link_macvtap_str2mode("bridge");
+}
+
+std::string strMacvtapModes(const enum NetworkMacvtapMode &net)
+{
+
+    if (net == NetworkMacvtapMode::Bridged)
+    {
+        return "bridge";
+    }
+    if (net == NetworkMacvtapMode::VEPA)
+    {
+        return "vepa";
+    }
+    if (net == NetworkMacvtapMode::Private)
+    {
+        return "private";
+    }
+    if (net == NetworkMacvtapMode::Passthrough)
+    {
+        return "passthrough";
+    }
+    return "bridge";
+}
+
+std::string QEMU_allocate_macvtap(QemuContext &ctx, const struct Network &net)
 {
     struct rtnl_link *link;
     struct nl_cache *link_cache;
@@ -99,7 +145,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
         exit(EXIT_FAILURE);
     }
 
-    if (!(master_index = rtnl_link_name2i(link_cache, masterinterface.c_str())))
+    if (!(master_index = rtnl_link_name2i(link_cache, net.interface.c_str())))
     {
         fprintf(stderr, "Unable to lookup enp2s0");
         exit(EXIT_FAILURE);
@@ -114,7 +160,7 @@ std::string QEMU_allocate_macvtap(QemuContext &ctx, std::string masterinterface)
 
     nl_addr_put(addr);
 
-    rtnl_link_macvtap_set_mode(link, rtnl_link_macvtap_str2mode("bridge"));
+    rtnl_link_macvtap_set_mode(link, macvtapModes(net.macvtapmode));
     rtnl_link_set_name(link, link_name.c_str());
 
     if ((err = rtnl_link_add(sk, link, NLM_F_CREATE)) < 0)
@@ -392,12 +438,12 @@ void QEMU_set_namespace(std::string namespace_path)
 /**
  * @brief Qemu Enable Nat, enables postrouting chain on a CIDR specified.
  * Since, IPtables doesn't have an API, this is the way you call it.
- * @param cidr 
+ * @param cidr
  */
 void QEMU_iptables_set_masquerade(std::string cidr)
 {
-    std::string del = m3_string_format("/usr/sbin/iptables -t nat -D POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(),  cidr.c_str() );
-    std::string add = m3_string_format("/usr/sbin/iptables -t nat -A POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(),  cidr.c_str());
+    std::string del = m3_string_format("/usr/sbin/iptables -t nat -D POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(), cidr.c_str());
+    std::string add = m3_string_format("/usr/sbin/iptables -t nat -A POSTROUTING -s %s ! -d %s -j MASQUERADE\n", cidr.c_str(), cidr.c_str());
     std::cout << "Using nat on " << cidr << std::endl;
     system(del.c_str());
     system(add.c_str());

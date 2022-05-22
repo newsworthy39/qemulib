@@ -202,19 +202,65 @@ void operator>>(const YAML::Node &node, struct Network &net)
             std::string mode = node["mode"].as<std::string>();
             if (mode.compare("bridge") == 0)
             {
-                net.macvtapmode == NetworkMacvtapMode::Bridged;
+                net.macvtapmode = NetworkMacvtapMode::Bridged;
             }
             if (mode.compare("vepa") == 0)
             {
-                net.macvtapmode == NetworkMacvtapMode::VEPA;
+                net.macvtapmode = NetworkMacvtapMode::VEPA;
             }
             if (mode.compare("private") == 0)
             {
-                net.macvtapmode == NetworkMacvtapMode::Private;
+                net.macvtapmode = NetworkMacvtapMode::Private;
+            }
+            if (mode.compare("passthrough") == 0)
+            {
+                net.macvtapmode = NetworkMacvtapMode::Passthrough;
             }
         }
     }
+    if (tp.compare("tuntap") == 0)
+    {
+        net.topology = NetworkTopology::Tuntap;
+        net.nat = false;
+        net.cidr = "10.0.91.0/24";
+    }
 }
+
+
+/**
+ * @brief operator << overloads the network operatr
+ * 
+ * @param os 
+ * @param net 
+ * @return std::ostream& 
+ */
+std::ostream &
+operator<<(std::ostream &os, const struct Network &net)
+{
+    switch (net.topology)
+    {
+    case NetworkTopology::Bridge:
+    {
+        os << "Bridge network association: " << net.name << " network " << net.cidr;
+    }
+    break;
+    case NetworkTopology::Macvtap:
+    {
+        os << "Macvtap network association: " << net.name << ", master interface " << net.interface << ", mode: " << strMacvtapModes(net.macvtapmode);
+    }
+    break;
+    case NetworkTopology::Tuntap:
+    {
+        os << "tap network association: " << net.name;
+    }
+    break;
+    }
+
+    os << ", namespace " << net.net_namespace;
+
+    return os;
+}
+
 
 /**
  * @brief loadimages from yaml config (registry.yaml)
@@ -274,8 +320,8 @@ int main(int argc, char *argv[])
                                          argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
-        {"main", "/home/gandalf/vms"},
-        {"iso", "/home/gandalf/Applications"},
+        {"main", m3_string_format("/home/%s/vms", std::getenv("USER"))},
+        {"iso", m3_string_format("/home/%s/Applications", std::getenv("USER"))},
     };
 
     std::vector<struct Model> models = {
@@ -309,21 +355,13 @@ int main(int argc, char *argv[])
     std::vector<struct Image> images = loadModel<struct Image>(config, "images", defaultImage);
 
     // load Models from registry.yml
-    struct Model defaultModel
-    {
-        .name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"
-    };
-    std::vector<struct Model> mo = loadModel<struct Model>(config, "models", defaultModel);
+    std::vector<struct Model> mo = loadModel<struct Model>(config, "models", models.front());
     if (mo.size() > 0)
     {
         models = mo;
     }
 
-    struct Network defaultNetworkModel
-    {
-        .cidr = "10.0.96.0/24", .nat = true
-    };
-    std::vector<struct Network> nets = loadModel<struct Network>(config, "networks", defaultNetworkModel);
+    std::vector<struct Network> nets = loadModel<struct Network>(config, "networks", networks.front());
     if (nets.size() > 0)
     {
         networks = nets;
@@ -477,7 +515,10 @@ int main(int argc, char *argv[])
 
             if (it != networks.end())
             {
+
                 QEMU_set_namespace((*it).net_namespace);
+
+                std::cout << *it << std::endl;
 
                 if ((*it).topology == NetworkTopology::Bridge)
                 {
@@ -519,9 +560,16 @@ int main(int argc, char *argv[])
 
                 if ((*it).topology == NetworkTopology::Macvtap)
                 {
-                    std::string tapdevice = QEMU_allocate_macvtap(ctx, (*it).interface);
+                    std::string tapdevice = QEMU_allocate_macvtap(ctx, *it);
                     QEMU_link_up(tapdevice);
+                    struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
+                    devices.push_back(netdevice);
+                }
 
+                if ((*it).topology == NetworkTopology::Tuntap)
+                {
+                    std::string tapdevice = QEMU_allocate_tun(ctx);
+                    QEMU_link_up(tapdevice);
                     struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
                     devices.push_back(netdevice);
                 }
@@ -551,7 +599,7 @@ int main(int argc, char *argv[])
                 std::cerr << m3_string_format("iso-store %s does not exist.", datastore.c_str()) << std::endl;
                 exit(EXIT_FAILURE);
             }
-            
+
             if (it != datastores.end())
             {
                 std::string drive = m3_string_format("%s/%s.iso", std::get<1>(*it).c_str(), drivename.c_str());

@@ -582,7 +582,7 @@ void QEMU_notified_exited(QemuContext &ctx)
 void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, const std::string cloud_settings_src)
 {
     std::string reversed = instanceid;
-    reversed.reserve(); // Make it more unique.
+    reversed.shrink_to_fit(); // Make it more unique.
     std::size_t str_hash = std::hash<std::string>{}(reversed);
     std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
     std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
@@ -604,7 +604,7 @@ void QEMU_cloud_init_network(QemuContext &ctx, const std::string instanceid, con
 void QEMU_cloud_init_default(QemuContext &ctx, std::string instanceid)
 {
     std::string reversed = instanceid;
-    reversed.reserve(); // Make it more unique.
+    reversed.shrink_to_fit(); // Make it more unique.
     std::size_t str_hash = std::hash<std::string>{}(reversed);
     std::string hostname = generatePrefixedUniqueString("i", str_hash, 8);
     std::string instance = generatePrefixedUniqueString("i", str_hash, 32);
