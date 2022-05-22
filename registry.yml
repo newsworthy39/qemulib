@@ -57,10 +57,10 @@ images:
     backingimage: ami-master
     size: 64g
     media: disc
-    bps-total: 16777216
+    bps-total: 33554432
   - name: testing
     datastore: default
-    backingimage: default
+    backingimage: ami-master
     media: disc    
     bps-total: 33554432
     size: 32g
