@@ -227,13 +227,12 @@ void operator>>(const YAML::Node &node, struct Network &net)
     }
 }
 
-
 /**
  * @brief operator << overloads the network operatr
- * 
- * @param os 
- * @param net 
- * @return std::ostream& 
+ *
+ * @param os
+ * @param net
+ * @return std::ostream&
  */
 std::ostream &
 operator<<(std::ostream &os, const struct Network &net)
@@ -261,7 +260,6 @@ operator<<(std::ostream &os, const struct Network &net)
 
     return os;
 }
-
 
 /**
  * @brief loadimages from yaml config (registry.yaml)
@@ -492,7 +490,9 @@ int main(int argc, char *argv[])
         exit(EXIT_FAILURE);
     }
 
-    // Remember argv[0] is the path to the program, we want from argv[1] onwards
+    /**
+     * @brief We use, a seperate section, to prevent accidental network-creation
+     */
     for (int i = 1; i < argc; ++i)
     {
         std::string argument(argv[i]);
@@ -519,7 +519,7 @@ int main(int argc, char *argv[])
 
                 QEMU_set_namespace((*it).net_namespace);
 
-                std::cout << *it << std::endl;
+                std::cout << "Using " << *it << std::endl;
 
                 if ((*it).topology == NetworkTopology::Bridge)
                 {
@@ -551,12 +551,6 @@ int main(int argc, char *argv[])
                     oemstrings.push_back(m3_string_format("dhcp-server:domain-name=%s", default_domainname.c_str()));
 
                     QEMU_oemstring(ctx, oemstrings);
-
-                    // TODO: Make this better.
-                    if (!(default_profile.starts_with("false") || default_registry.starts_with("false")))
-                    {
-                        QEMU_cloud_init_network(ctx, instanceid, m3_string_format("%s/%s/", default_registry.c_str(), default_profile.c_str()));
-                    }
                 }
 
                 if ((*it).topology == NetworkTopology::Macvtap)
@@ -573,6 +567,12 @@ int main(int argc, char *argv[])
                     QEMU_link_up(tapdevice);
                     struct NetworkDevice netdevice = {.device = tapdevice, .netspace = (*it).net_namespace};
                     devices.push_back(netdevice);
+                }
+
+                // TODO: Make this better.
+                if (!(default_profile.starts_with("false") || default_registry.starts_with("false")))
+                {
+                    QEMU_cloud_init_network(ctx, instanceid, m3_string_format("%s/%s/", default_registry.c_str(), default_profile.c_str()));
                 }
 
                 QEMU_set_default_namespace();
