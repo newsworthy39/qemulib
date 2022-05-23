@@ -17,10 +17,13 @@ networks:
     router: 10.0.96.1
     namespace: default
     nat: true
-  - name: public
+  - name: macvtap
     interface: enp2s0
     topology: macvtap
-    namespace: root
+    namespace: default
+    mode: vepa
+  - name: tun
+    topology: tuntap
 datastores:
   - default: "/media/gandalf/d63cdc3e-58e5-44c4-bc26-1bd2f5547c99"
   - slow: "/media/gandalf/da3e8718-0b61-44d6-8553-1f0c1cf89c4d"
@@ -58,7 +61,7 @@ images:
     size: 64g
     media: disc
     bps-total: 33554432
-  - name: testing
+  - name: mqtt
     datastore: default
     backingimage: ami-master
     media: disc    

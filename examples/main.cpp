@@ -194,7 +194,8 @@ void operator>>(const YAML::Node &node, struct Network &net)
         }
         else
         {
-            std::cerr << "When using macvtap-mode, interface is required" << std::endl;
+            std::cerr << "When using macvtap-mode, interface: is required" << std::endl;
+            exit(EXIT_FAILURE);
         }
 
         if (node["mode"])
