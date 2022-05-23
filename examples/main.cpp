@@ -312,11 +312,12 @@ int main(int argc, char *argv[])
     std::string default_network = globals<std::string>(config, "globals", "default_network", "default");
     std::string default_domainname = globals<std::string>(config, "globals", "default_domainname", "local");
     std::string default_registry = globals<std::string>(config, "globals", "default_registry", "none");
+    std::string default_user = std::getenv("USER");
     size_t bpstotal = globals<size_t>(config, "globals", "default_bpstotal", 16777216);
-    std::string usage = m3_string_format("usage(): %s (-help) (-headless) (-ephimeral) -incoming {default=4444} "
+    std::string usage = m3_string_format("usage(): %s (-help) (-runas {default=%s}) (-headless) (-ephimeral) -incoming {default=4444} "
                                          "-model {default=%s} (-network default=%s+1} -machine {default=%s} -profile {default=%s} "
                                          "(-iso cdrom) (-vol datastore:size) instance://instance-id { eg. instance://i-1234 }",
-                                         argv[0], model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
+                                         argv[0], default_user.c_str(), model.c_str(), default_network.c_str(), machine.c_str(), default_profile.c_str());
 
     std::vector<std::tuple<std::string, std::string>> datastores{
         {"main", m3_string_format("/home/%s/vms", std::getenv("USER"))},
@@ -478,6 +479,12 @@ int main(int argc, char *argv[])
         {
             QEMU_ephimeral(ctx);
         }
+        
+        if (argument.find("-user") != std::string::npos && (i + 1 < argc))
+        {
+            default_user = argv[i + 1];
+        }
+
         if (argument.find("-profile") != std::string::npos && (i + 1 < argc))
         {
             default_profile = argv[i + 1];
@@ -666,7 +673,7 @@ int main(int argc, char *argv[])
     if (daemon == 0)
     {
         QEMU_instance(ctx, instanceid, lang);
-        QEMU_user(ctx, "gandalf");
+        QEMU_user(ctx, default_user);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_notified_started(ctx);
