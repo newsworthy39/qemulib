@@ -21,7 +21,7 @@ networks:
     interface: enp2s0
     topology: macvtap
     namespace: default
-    mode: vepa
+    mode: bridge
   - name: tun
     topology: tuntap
 datastores:
@@ -61,7 +61,7 @@ images:
     size: 64g
     media: disc
     bps-total: 33554432
-  - name: mqtt
+  - name: wgclient
     datastore: default
     backingimage: ami-master
     media: disc    

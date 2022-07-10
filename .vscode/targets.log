@@ -1,12 +1,13 @@
 make all --print-data-base --no-builtin-variables --no-builtin-rules --question
 # GNU Make 4.3
+ 
 # Built for x86_64-pc-linux-gnu
 # Copyright (C) 1988-2020 Free Software Foundation, Inc.
 # License GPLv3+: GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>
 # This is free software: you are free to change and redistribute it.
 # There is NO WARRANTY, to the extent permitted by law.
 
-# Make data base, printed on Fri May 20 20:44:04 2022
+# Make data base, printed on Sun Jul 10 12:48:04 2022
 
 # Variables
 
@@ -17,13 +18,11 @@ LC_ALL = C
 # environment
 GTK_RC_FILES = /etc/gtk/gtkrc:/home/gandalf/.gtkrc:/home/gandalf/.config/gtkrc
 # environment
-VSCODE_IPC_HOOK_EXTHOST = /run/user/1000/vscode-ipc-00bcd764-be4c-4373-8a41-790f5938a1de.sock
-# environment
-KONSOLE_DBUS_SERVICE = :1.266
+KONSOLE_DBUS_SERVICE = :1.162
 # environment
 VSCODE_CWD = /home/gandalf/workspace/qemu
 # environment
-WINDOWID = 4194311
+WINDOWID = 83886087
 # default
 MAKE_COMMAND := make
 # environment
@@ -43,19 +42,17 @@ PWD = /home/gandalf/workspace/qemu
 # environment
 XDG_DATA_DIRS = /usr/share/plasma:/home/gandalf/.local/share/flatpak/exports/share:/var/lib/flatpak/exports/share:/usr/local/share:/usr/share
 # environment
-OLDPWD = /home/gandalf/workspace/qemu/build
+OLDPWD = /home/gandalf
 # environment
 KONSOLE_DBUS_WINDOW = /Windows/1
 # automatic
 ^D = $(patsubst %/,%,$(dir $^))
-# environment
-VSCODE_LOG_STACK = false
 # automatic
 %F = $(notdir $%)
 # environment
-VSCODE_CODE_CACHE_PATH = /home/gandalf/.config/Code/CachedData/c3511e6c69bb39013c4a4b7b9566ec1ca73fc4d5
+VSCODE_CODE_CACHE_PATH = /home/gandalf/.config/Code/CachedData/92d25e35d9bf1a6b16f7d0758f25d48ace11e5b9
 # environment
-XDG_SESSION_PATH = /org/freedesktop/DisplayManager/Session1
+XDG_SESSION_PATH = /org/freedesktop/DisplayManager/Session7
 # environment
 SSH_ASKPASS = /usr/bin/ksshaskpass
 # environment
@@ -73,8 +70,6 @@ MAKEFLAGS = pqrR
 # makefile
 CURDIR := /home/gandalf/workspace/qemu
 # environment
-VSCODE_PIPE_LOGGING = true
-# environment
 APPLICATION_INSIGHTS_NO_DIAGNOSTIC_CHANNEL = 1
 # environment
 LESSOPEN = | /usr/bin/lesspipe %s
@@ -85,7 +80,7 @@ PAM_KWALLET5_LOGIN = /run/user/1000/kwallet5.socket
 # environment
 MFLAGS = -pqrR
 # environment
-SSH_AUTH_SOCK = /tmp/ssh-XXXXXXU8LEdC/agent.1223
+SSH_AUTH_SOCK = /tmp/ssh-XXXXXXTWYZsF/agent.3442
 # default
 .SHELLFLAGS := -c
 # environment
@@ -101,9 +96,7 @@ MAKEFILE_LIST := Makefile
 # automatic
 @F = $(notdir $@)
 # environment
-VSCODE_VERBOSE_LOGGING = true
-# environment
-VSCODE_PID = 15095
+VSCODE_PID = 6652
 # environment
 XDG_SESSION_TYPE = x11
 # automatic
@@ -143,9 +136,7 @@ LANGUAGE = en_GB
 # automatic
 ^F = $(notdir $^)
 # environment
-INVOCATION_ID = b7ddf1646c6c4921bbe2406d9a879713
-# environment
-VSCODE_LOG_NATIVE = false
+INVOCATION_ID = ef84bcdc1cbe4bef9490fed3bbd0b98f
 # environment
 LESSCLOSE = /usr/bin/lesspipe %s %s
 # automatic
@@ -175,7 +166,7 @@ XDG_VTNR = 1
 # makefile
 .DEFAULT_GOAL := all
 # environment
-SYSTEMD_EXEC_PID = 1502
+SYSTEMD_EXEC_PID = 3711
 # environment
 DISPLAY = :0
 # environment
@@ -187,9 +178,9 @@ KDE_SESSION_UID = 1000
 # environment
 KONSOLE_DBUS_SESSION = /Sessions/1
 # environment
-MANAGERPID = 1200
+MANAGERPID = 2155
 # environment
-SSH_AGENT_PID = 1358
+SSH_AGENT_PID = 3569
 # environment
 _ = /usr/bin/code
 # environment
@@ -199,7 +190,7 @@ GPG_AGENT_INFO = /run/user/1000/gnupg/S.gpg-agent:0:1
 # environment
 COLORTERM = truecolor
 # environment
-JOURNAL_STREAM = 8:27104
+JOURNAL_STREAM = 8:37647
 # environment
 XDG_SESSION_CLASS = user
 # environment
@@ -211,11 +202,11 @@ HOME = /home/gandalf
 # environment
 ELECTRON_RUN_AS_NODE = 1
 # environment
-VSCODE_IPC_HOOK = /run/user/1000/vscode-28220d02-1.67.2-main.sock
+VSCODE_IPC_HOOK = /run/user/1000/vscode-28220d02-1.69.0-main.sock
 # environment
 TERM = xterm-256color
 # environment
-XDG_SESSION_ID = 3
+XDG_SESSION_ID = 14
 # environment
 XCURSOR_SIZE = 24
 # environment
@@ -233,7 +224,7 @@ VSCODE_CLI = 1
 # environment
 ELECTRON_NO_ATTACH_CONSOLE = 1
 # environment
-SHELL_SESSION_ID = 00b5303e78184da8b98746482cbb87d7
+SHELL_SESSION_ID = 9b01c7c834464da8820b52c3be947923
 # environment
 KDE_SESSION_VERSION = 5
 # default
@@ -245,7 +236,7 @@ BUILDDIR = build
 # environment
 KDE_FULL_SESSION = true
 # variable set hash-table stats:
-# Load=117/1024=11%, Rehash=0, Collisions=7/153=5%
+# Load=112/1024=11%, Rehash=0, Collisions=6/148=4%
 
 # Pattern-specific Variable Values
 
@@ -253,9 +244,9 @@ KDE_FULL_SESSION = true
 
 # Directories
 
-# . (device 2314, inode 7602370): 18 files, no impossibilities.
+# . (device 2314, inode 7602370): 17 files, no impossibilities.
 
-# 18 files, no impossibilities in 1 directories.
+# 17 files, no impossibilities in 1 directories.
 
 # Implicit Rules
 
@@ -277,7 +268,6 @@ libraries/json11/json11.o:
 #  File has not been updated.
 
 # Not a target:
- 
 Makefile:
 #  Implicit rule search has been done.
 #  Last modified 2022-03-18 14:56:40.563672935
@@ -289,6 +279,7 @@ clean:
 #  Implicit rule search has not been done.
 #  File does not exist.
 #  File has not been updated.
+ 
 #  recipe to execute (from 'Makefile', line 24):
 	rm -rf *.o $(BUILDDIR) src/*.o 
 	$(MAKE) -C examples clean
@@ -296,7 +287,7 @@ clean:
 # Not a target:
 src/qemu-manage.o:
 #  Implicit rule search has been done.
-#  Last modified 2022-03-21 16:56:09.574035387
+#  Last modified 2022-05-22 16:53:19.34620611
 #  File has been updated.
 #  Successfully updated.
 
@@ -336,7 +327,7 @@ checkdirs: build
 # Not a target:
 src/qemu-hypervisor.o:
 #  Implicit rule search has been done.
-#  Last modified 2022-03-30 20:37:21.7095634
+#  Last modified 2022-07-09 21:28:25.484385305
 #  File has been updated.
 #  Successfully updated.
 
@@ -357,7 +348,7 @@ all: checkdirs libqemu.a libjson.a build_examples
 
 build:
 #  Implicit rule search has not been done.
-#  Last modified 2022-04-15 19:05:33.081519053
+#  Last modified 2022-07-09 21:33:28.810708049
 #  File has been updated.
 #  Successfully updated.
 #  recipe to execute (from 'Makefile', line 12):
@@ -373,7 +364,7 @@ libjson.a: libraries/json11/json11.o
 # Not a target:
 src/qemu-link.o:
 #  Implicit rule search has been done.
-#  Last modified 2022-03-21 16:56:05.702055563
+#  Last modified 2022-05-22 18:22:13.87591559
 #  File has been updated.
 #  Successfully updated.
 
@@ -396,12 +387,12 @@ src/qemu-link.o:
 
 # No general ('VPATH' variable) search path.
 
-# strcache buffers: 1 (0) / strings = 33 / storage = 357 B / avg = 10 B
-# current buf: size = 8162 B / used = 357 B / count = 33 / avg = 10 B
+# strcache buffers: 1 (0) / strings = 32 / storage = 339 B / avg = 10 B
+# current buf: size = 8162 B / used = 339 B / count = 32 / avg = 10 B
 
-# strcache performance: lookups = 54 / hit rate = 38%
+# strcache performance: lookups = 53 / hit rate = 39%
 # hash-table stats:
-# Load=33/8192=0%, Rehash=0, Collisions=0/54=0%
-# Finished Make data base on Fri May 20 20:44:04 2022
+# Load=32/8192=0%, Rehash=0, Collisions=0/53=0%
+# Finished Make data base on Sun Jul 10 12:48:04 2022
 
  

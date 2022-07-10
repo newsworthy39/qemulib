@@ -11,6 +11,14 @@ std::ostream &operator<<(std::ostream &os, const struct Model &model)
     return os;
 }
 
+std::ostream &operator<<(std::ostream &os, const struct QemuContext &ctx) {
+    os << ctx.reservationid << ", "  << ctx.rootdrive << std::endl;;
+    std::for_each(ctx.devices.begin(), ctx.devices.end(), [&os](const std::string &str) {
+        os << str << " " ;
+    });
+    return os;
+}
+
 /**
  * Helper functions
  */
@@ -226,17 +234,17 @@ void QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::st
 
     PushArguments(ctx, "-name", instanceid);
 
-    PushArguments(ctx, "-watchdog", "i6300esb");
+    PushArguments(ctx, "-device", "i6300esb");
     PushArguments(ctx, "-watchdog-action", "reset");
     PushArguments(ctx, "-k", language);
     PushArguments(ctx, "-boot", "menu=off,order=cdn,strict=off"); // Boot with ISO if disk is missing.
     PushArguments(ctx, "-rtc", "base=utc,clock=host,driftfix=slew");
-    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server,nowait", guestid.c_str()));
+    PushArguments(ctx, "-monitor", m2_string_format("unix:/tmp/%s.monitor,server=on,wait=off", guestid.c_str()));
     PushArguments(ctx, "-pidfile", m2_string_format("/tmp/%s.pid", guestid.c_str()));
-    PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server,nowait", guestid.c_str()));
+    PushArguments(ctx, "-qmp", m2_string_format("unix:/tmp/%s.socket,server=on,wait=off", guestid.c_str()));
 
     // This is the QEMU GUEST AGENT
-    PushArguments(ctx, "-chardev", m2_string_format("socket,path=/tmp/qga-%s.socket,server,nowait,id=qga0", guestid.c_str()));
+    PushArguments(ctx, "-chardev", m2_string_format("socket,path=/tmp/qga-%s.socket,server=on,wait=off,id=qga0", guestid.c_str()));
     PushArguments(ctx, "-device", "virtio-serial");
     PushArguments(ctx, "-device", "virtserialport,chardev=qga0,name=org.qemu.guest_agent.0");
 

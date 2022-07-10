@@ -29,6 +29,7 @@ struct Model
     std::string arch;
 };
 std::ostream &operator<<(std::ostream &os, const struct Model &model);
+
 struct QemuContext
 {
     struct Model model = {.name = "t1-small", .memory = 1024, .cpus = 1, .flags = "host", .arch = "amd64"};
@@ -38,6 +39,8 @@ struct QemuContext
     std::string reservationid;
     bool mEphimeral = false;
 };
+
+std::ostream &operator<<(std::ostream &os, const struct QemuContext &ctx);
 
 enum QEMU_DISPLAY
 {

@@ -673,7 +673,7 @@ int main(int argc, char *argv[])
     if (daemon == 0)
     {
         QEMU_instance(ctx, instanceid, lang);
-        QEMU_user(ctx, default_user);
+        //QEMU_user(ctx, default_user);
         QEMU_display(ctx, display);
         QEMU_machine(ctx, machine);
         QEMU_notified_started(ctx);

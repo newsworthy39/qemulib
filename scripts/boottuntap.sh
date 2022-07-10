@@ -4,4 +4,4 @@ if [ "$EUID" -ne 0 ]
   exit
 fi
 
-sudo build/qemu -headless -model c1-faster -ephimeral -network tuntap -profile ami instance://ami-1234
+sudo build/qemu -model t1-medium -ephimeral -network tun -profile ami instance://ami-123456
