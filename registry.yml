@@ -58,9 +58,9 @@ images:
   - name: ami
     datastore: slow
     backingimage: ami-master
-    size: 64g
+    size: 32g
     media: disc
-    bps-total: 33554432
+    bps-total: 16777216
   - name: wgclient
     datastore: default
     backingimage: ami-master
