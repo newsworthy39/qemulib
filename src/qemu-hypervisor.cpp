@@ -225,7 +225,11 @@ void QEMU_user(QemuContext &ctx, const std::string user)
 }
 
 /*
- * QEMU_init (int memory, int numcpus)
+ * QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language)
+ * QemuContext ctx
+ * const std::string instanceid
+ * const std::string language = "en"
+ * @return void
  * Have a look at https://bugzilla.redhat.com/show_bug.cgi?id=1777210
  */
 void QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language)

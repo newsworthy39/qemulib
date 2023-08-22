@@ -5,6 +5,7 @@ FLAGS=-o3
 .PHONY: clean
 
 all: checkdirs libqemu.a libjson.a build_examples
+lib: checkdirs libqemu.a
 
 checkdirs: $(BUILDDIR)
 

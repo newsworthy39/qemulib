@@ -58,7 +58,11 @@ void PushDriveArgument(QemuContext &ctx, std::string value);
 void PushArguments(QemuContext &args, std::string key, std::string value);
 
 /*
- * QEMU_init (std::vector<std::string>, int memory, int numcpus, const std::string language)
+ * QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language = "en");
+ * QemuContext ctx
+ * const std::string instanceid
+ * const std::string language = "en"
+ * @return void
  */
 void QEMU_instance(QemuContext &ctx, const std::string instanceid, const std::string language = "en");
 
